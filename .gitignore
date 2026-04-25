@@ -1,0 +1,14 @@
+# Godot caches
+.godot/
+.import/
+*.translation
+
+# Editor / OS
+.DS_Store
+*.swps
+
+# IDE
+.vscode
+.idea
+
+addons/godot-locator/*.gd.uid
