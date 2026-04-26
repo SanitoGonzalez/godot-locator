@@ -3,6 +3,8 @@
 .import/
 *.translation
 
+addons/godot-locator/*.gd.uid
+
 # Editor / OS
 .DS_Store
 *.swps
@@ -11,4 +13,10 @@
 .vscode
 .idea
 
-addons/godot-locator/*.gd.uid
+# Python
+.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
+
+temp

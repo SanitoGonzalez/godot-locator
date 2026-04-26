@@ -6,6 +6,7 @@ extends Node
 
 const ENV_PORT := "GODOT_LOCATOR_PORT"
 const ENV_HOST := "GODOT_LOCATOR_HOST"
+const ENV_SERVER_ENABLED := "GODOT_LOCATOR_SERVER_ENABLED"
 const DEFAULT_PORT := 8282
 const DEFAULT_HOST := "127.0.0.1"
 
@@ -29,6 +30,12 @@ var _ref_counter: int = 0
 
 
 func _ready() -> void:
+	# Server defaults on; only the literal `false` (case-insensitive) disables it.
+	if OS.get_environment(ENV_SERVER_ENABLED).to_lower() == "false":
+		# Public API stays callable from user code; only the WebSocket is off.
+		set_process(false)
+		return
+
 	var env_port := OS.get_environment(ENV_PORT)
 	if env_port != "":
 		_port = int(env_port)
@@ -128,23 +135,32 @@ func _dispatch(method: String, params: Dictionary) -> Variant:
 
 # --- query (stubs, fill in incrementally) -------------------------------------
 
-func _snapshot(params: Dictionary) -> Variant:
-	var max_depth: int = int(params.get("depth", 0))
-	var skip_invisible: bool = bool(params.get("skip_invisible", true))
-
+## Render the current SceneTree as a YAML-style snapshot string.
+## See README → Snapshot for the line format. `depth=0` means no limit.
+## `tag_ref=true` opts into emitting `ref=eN` markers (Playwright-style — refs
+## are off by default; tools that intend to act on the snapshot ask for them).
+func snapshot(depth: int = 0, skip_invisible: bool = true, tag_ref: bool = false) -> String:
 	var lines := PackedStringArray()
 	for child in get_tree().root.get_children():
-		_walk_ui(child, 0, max_depth, skip_invisible, lines)
+		_walk_ui(child, 0, depth, skip_invisible, tag_ref, lines)
 	return "\n".join(lines)
+
+
+func _snapshot(params: Dictionary) -> Variant:
+	return snapshot(
+		int(params.get("depth", 0)),
+		bool(params.get("skip_invisible", true)),
+		bool(params.get("tag_ref", false)),
+	)
 
 
 # Emit only Control nodes. Non-Control ancestors (Window, CanvasLayer, Node2D…)
 # are traversed transparently so Controls nested under them still appear, at
 # the same depth as their nearest Control ancestor.
-func _walk_ui(node: Node, control_depth: int, max_depth: int, skip_invisible: bool, lines: PackedStringArray) -> void:
+func _walk_ui(node: Node, control_depth: int, max_depth: int, skip_invisible: bool, tag_ref: bool, lines: PackedStringArray) -> void:
 	if not (node is Control):
 		for child in node.get_children():
-			_walk_ui(child, control_depth, max_depth, skip_invisible, lines)
+			_walk_ui(child, control_depth, max_depth, skip_invisible, tag_ref, lines)
 		return
 
 	var ctrl: Control = node
@@ -152,7 +168,7 @@ func _walk_ui(node: Node, control_depth: int, max_depth: int, skip_invisible: bo
 		return
 
 	var indent := "  ".repeat(control_depth)
-	var label := _format_control(ctrl)
+	var label := _format_control(ctrl, tag_ref)
 
 	if max_depth > 0 and control_depth >= max_depth - 1:
 		lines.append("%s- %s" % [indent, label])
@@ -160,7 +176,7 @@ func _walk_ui(node: Node, control_depth: int, max_depth: int, skip_invisible: bo
 
 	var children := PackedStringArray()
 	for child in node.get_children():
-		_walk_ui(child, control_depth + 1, max_depth, skip_invisible, children)
+		_walk_ui(child, control_depth + 1, max_depth, skip_invisible, tag_ref, children)
 
 	if children.is_empty():
 		lines.append("%s- %s" % [indent, label])
@@ -169,13 +185,13 @@ func _walk_ui(node: Node, control_depth: int, max_depth: int, skip_invisible: bo
 		lines.append_array(children)
 
 
-func _format_control(ctrl: Control) -> String:
+func _format_control(ctrl: Control, tag_ref: bool) -> String:
 	var parts := PackedStringArray()
 	parts.append(_class_name(ctrl))
 
 	var custom_method := _custom_format_method(ctrl)
 	var has_custom: bool = custom_method != ""
-	var needs_ref: bool = has_custom or ctrl is LineEdit or ctrl is TextEdit or ctrl is BaseButton
+	var needs_ref: bool = tag_ref and (has_custom or ctrl is LineEdit or ctrl is TextEdit or ctrl is BaseButton)
 	var node_name := str(ctrl.name)
 	if node_name != "" or needs_ref:
 		var bits := PackedStringArray()
@@ -319,11 +335,27 @@ func _node_matches(node: Node, loc: Dictionary) -> bool:
 
 # --- control ------------------------------------------------------------------
 
+## Synthesize a left-click at the node's center. `node` must be a Control or Node2D.
+func click(node: Node) -> void:
+	_push_mouse_click(node, MOUSE_BUTTON_LEFT, false)
+
+
+## Synthesize a left-click followed by a `double_click=true` left-click.
+func double_click(node: Node) -> void:
+	_push_mouse_click(node, MOUSE_BUTTON_LEFT, false)
+	_push_mouse_click(node, MOUSE_BUTTON_LEFT, true)
+
+
+## Synthesize a right-click at the node's center.
+func right_click(node: Node) -> void:
+	_push_mouse_click(node, MOUSE_BUTTON_RIGHT, false)
+
+
 func _click(params: Dictionary) -> Variant:
 	var resolved: Variant = _resolve_one(params)
 	if resolved is Dictionary:
 		return resolved
-	_push_mouse_click(resolved, MOUSE_BUTTON_LEFT, false)
+	click(resolved)
 	return null
 
 
@@ -331,8 +363,7 @@ func _double_click(params: Dictionary) -> Variant:
 	var resolved: Variant = _resolve_one(params)
 	if resolved is Dictionary:
 		return resolved
-	_push_mouse_click(resolved, MOUSE_BUTTON_LEFT, false)
-	_push_mouse_click(resolved, MOUSE_BUTTON_LEFT, true)
+	double_click(resolved)
 	return null
 
 
@@ -340,7 +371,7 @@ func _right_click(params: Dictionary) -> Variant:
 	var resolved: Variant = _resolve_one(params)
 	if resolved is Dictionary:
 		return resolved
-	_push_mouse_click(resolved, MOUSE_BUTTON_RIGHT, false)
+	right_click(resolved)
 	return null
 
 
@@ -385,27 +416,35 @@ func _focus(_params: Dictionary) -> Variant:
 	return {"todo": true}
 
 
-func _fill(params: Dictionary) -> Variant:
-	var resolved: Variant = _resolve_one(params)
-	if resolved is Dictionary:
-		return resolved
-	var text: String = str(params.get("text", ""))
-	if resolved is LineEdit:
-		var le: LineEdit = resolved
+## Replace `node.text` with `text` (clears, then types). `node` must be a
+## LineEdit or TextEdit — calling on anything else returns false.
+func fill(node: Node, text: String) -> bool:
+	if node is LineEdit:
+		var le: LineEdit = node
 		le.grab_focus()
 		le.text = text
 		le.caret_column = text.length()
 		# `text` setter doesn't fire text_changed — emit manually so listeners
 		# (e.g. CharCounter) see the new value.
 		le.text_changed.emit(text)
-		return null
-	if resolved is TextEdit:
-		var te: TextEdit = resolved
+		return true
+	if node is TextEdit:
+		var te: TextEdit = node
 		te.grab_focus()
 		te.text = text
 		te.text_changed.emit()
-		return null
-	return {"__error": "fill: node is not LineEdit/TextEdit (got %s)" % resolved.get_class()}
+		return true
+	return false
+
+
+func _fill(params: Dictionary) -> Variant:
+	var resolved: Variant = _resolve_one(params)
+	if resolved is Dictionary:
+		return resolved
+	var text: String = str(params.get("text", ""))
+	if not fill(resolved, text):
+		return {"__error": "fill: node is not LineEdit/TextEdit (got %s)" % resolved.get_class()}
+	return null
 
 
 func _press_key(_params: Dictionary) -> Variant:

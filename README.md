@@ -10,8 +10,21 @@ Enable the addon in *Project Settings → Plugins*. It registers a `Locator` aut
 | --- | ----------- | ------- |
 | `GODOT_LOCATOR_PORT` | port the runtime service binds to | `8282` |
 | `GODOT_LOCATOR_HOST` | bind address — `127.0.0.1` / `::1` for loopback, `0.0.0.0` / `::` for all interfaces (v4 / v6) | `127.0.0.1` |
+| `GODOT_LOCATOR_SERVER_ENABLED` | set to `false` to skip the WebSocket server. The autoload's [direct API](#direct-api) stays available to your code | `true` |
 
 > Binding to `0.0.0.0` or `::` exposes the runtime control surface (click, drag, fill…) to your network. Use only on trusted networks.
+
+### Direct API
+
+Everything the WebSocket exposes is also callable directly on the `Locator` autoload, so you can drive the same behavior from your own scripts (debug overlays, in-game dev tools, custom test rigs) without bringing up a client. Combine with `GODOT_LOCATOR_SERVER_ENABLED=false` if you don't need the wire interface at all.
+
+```gdscript
+var yaml: String = Locator.snapshot()
+Locator.click($Form/SubmitButton)
+Locator.fill($Form/NameInput, "Sanito")
+```
+
+Currently exposed: `snapshot(depth, skip_invisible)`, `click(node)`, `double_click(node)`, `right_click(node)`, `fill(node, text)`. The locator chain (`get_by_*` / filter) is wire-only for now — call methods with a `Node` you already have.
 
 ### Snapshot
 
@@ -24,13 +37,14 @@ YAML-structured text snapshot of SceneTree. Only `Control` nodes are emitted; no
   - Button [SubmitButton ref=e2] "Submit" disabled
 ```
 
-Each line is `- <Class> [<name>[ ref=eN]] [ "<text>"] [ <key>="<val>"]* [ <flag>]* [:]`. Refs (`eN`) are stable instance ids — once issued, they keep pointing at the same node for follow-up `locate`/control calls — and are emitted only for interactive nodes (`LineEdit` / `TextEdit` / `BaseButton`) and any node implementing the custom-format hook below.
+Each line is `- <Class> [<name>[ ref=eN]] [ "<text>"] [ <key>="<val>"]* [ <flag>]* [:]`. Refs (`eN`) are stable instance ids — once issued, they keep pointing at the same node for follow-up `locate`/control calls — and are off by default; pass `tag_ref: true` (Playwright-style) to have them emitted for interactive nodes (`LineEdit` / `TextEdit` / `BaseButton`) and any node implementing the custom-format hook below.
 
 #### Options
 | Name | Description | Default |
 | ---- | ----------- | ------- |
 | depth | maximum traversal depth from the root | 0 (all) |
 | skip_invisible | omit nodes whose `visible` is false (and their subtrees) | true |
+| tag_ref | emit `ref=eN` markers for interactive / custom-format nodes | false |
 
 #### Custom node formatting
 

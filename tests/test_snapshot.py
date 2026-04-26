@@ -33,9 +33,9 @@ async def test_snapshot_matches_form_structure(godot):
 
 async def test_custom_node_uses_format_hook(godot):
     """CharCounter implements `_godot_locator_format` → its line carries the
-    hook's text/attrs and the plugin auto-issues a ref."""
+    hook's text/attrs, and with `tag_ref=true` the plugin auto-issues a ref."""
     async with Client(godot.port) as c:
-        yaml = await c.call("snapshot")
+        yaml = await c.call("snapshot", tag_ref=True)
     expect_nodes(
         yaml,
         [Node("CharCounter", name="Counter", text="0/20", attrs={"max": "20"})],
@@ -45,6 +45,15 @@ async def test_custom_node_uses_format_hook(godot):
         f"expected auto-issued ref for custom node, got {counter.ref!r}"
     )
     assert "full" not in counter.flags, "counter should not be 'full' at 0/20"
+
+
+async def test_snapshot_omits_refs_by_default(godot):
+    """Refs are opt-in (Playwright-style). A plain `snapshot` call must not
+    emit `ref=eN` markers, even for interactive nodes."""
+    async with Client(godot.port) as c:
+        yaml = await c.call("snapshot")
+    assert "ref=" not in yaml, f"expected no refs in default snapshot, got:\n{yaml}"
+    assert all(n.ref is None for n in parse(yaml))
 
 
 async def test_csharp_custom_node_unicode_roundtrip(godot):
