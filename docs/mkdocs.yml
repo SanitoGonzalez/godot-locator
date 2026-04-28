@@ -1,0 +1,62 @@
+site_name: Godot Locator
+site_description: Playwright-style runtime locators for Godot, with an MCP server, Python client, and CLI.
+site_url: https://sanitogonzalez.github.io/godot-locator/
+repo_url: https://github.com/SanitoGonzalez/godot-locator
+repo_name: SanitoGonzalez/godot-locator
+edit_uri: edit/main/docs/
+
+docs_dir: content
+site_dir: site
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Components:
+    - Godot plugin: plugin.md
+    - Python client: python.md
+    - MCP server: mcp.md
+    - CLI: cli.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+

@@ -1,4 +1,4 @@
-# Integration tests
+# tests
 
 End-to-end tests that spawn a real Godot game with the `godot-locator` plugin
 loaded and drive it via the Python client / MCP server / CLI.
