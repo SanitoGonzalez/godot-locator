@@ -9,7 +9,6 @@ wants to inspect and click around the SceneTree.
 | Component | What it is |
 | --- | --- |
 | [Godot plugin](plugin.md) | The `addons/godot-locator` plugin that opens a WebSocket on the running game and answers JSON-RPC requests. |
-| [Python client](python.md) | `godot-locator-client` — async WebSocket client. The wire-level API. |
 | [MCP server](mcp.md) | `godot-locator-mcp` — exposes the locator API to Claude / any MCP-aware AI agent. |
 | [CLI](cli.md) | `godot-locator-cli` — drive the locator from a shell. |
 
