@@ -34,32 +34,77 @@ async def test_snapshot_tag_ref_false_omits_refs(mcp_client: Client) -> None:
 
 
 async def test_click_updates_status_label(mcp_client: Client) -> None:
-    await mcp_client.call_tool("click", {"locator": {"name": "Submit"}})
-    text = await _snapshot_text(mcp_client)
-    assert "submitted: " in text
+    # `.structured_content` is the raw interaction-response dict; `.data` is the
+    # parsed Pydantic model (attribute access). Tests use the dict for clarity.
+    result = await mcp_client.call_tool("click", {"locator": {"name": "Submit"}})
+    assert "submitted: " in result.structured_content["snapshot"]
 
 
 async def test_double_click_updates_status_label(mcp_client: Client) -> None:
-    await mcp_client.call_tool("double_click", {"locator": {"name": "ClickPad"}})
-    text = await _snapshot_text(mcp_client)
-    assert "double-clicked" in text
+    result = await mcp_client.call_tool("double_click", {"locator": {"name": "ClickPad"}})
+    assert "double-clicked" in result.structured_content["snapshot"]
 
 
 async def test_right_click_updates_status_label(mcp_client: Client) -> None:
-    await mcp_client.call_tool("right_click", {"locator": {"name": "ClickPad"}})
-    text = await _snapshot_text(mcp_client)
-    assert "right-clicked" in text
+    result = await mcp_client.call_tool("right_click", {"locator": {"name": "ClickPad"}})
+    assert "right-clicked" in result.structured_content["snapshot"]
 
 
 async def test_fill_writes_text_and_emits_changed(mcp_client: Client) -> None:
-    await mcp_client.call_tool("fill", {"locator": {"name": "NameInput"}, "text": "Sanito"})
-    text = await _snapshot_text(mcp_client)
+    result = await mcp_client.call_tool(
+        "fill", {"locator": {"name": "NameInput"}, "text": "Sanito"}
+    )
+    text = result.structured_content["snapshot"]
     # CharCounter listens on text_changed; "6/20" proves the signal fired.
-    assert 'text="Sanito"' in text
+    # LineEdit content is now in the positional `"text"` slot, not an attr.
+    assert '"Sanito"' in text
     assert "6/20" in text
+
+
+async def test_interaction_response_carries_tree_version(mcp_client: Client) -> None:
+    """Interactions bundle their own fresh snapshot — no follow-up call needed."""
+    first = await mcp_client.call_tool("click", {"locator": {"name": "Submit"}})
+    second = await mcp_client.call_tool("click", {"locator": {"name": "Submit"}})
+    assert first.structured_content["mode"] == "full"
+    assert second.structured_content["tree_version"] > first.structured_content["tree_version"]
 
 
 async def test_unknown_locator_raises_tool_error(mcp_client: Client) -> None:
     with pytest.raises(ToolError) as exc:
         await mcp_client.call_tool("click", {"locator": {"name": "NoSuchNode"}})
     assert "no matches" in str(exc.value).lower()
+
+
+async def test_text_locator(mcp_client: Client) -> None:
+    result = await mcp_client.call_tool("click", {"locator": {"text": "Submit"}})
+    assert "submitted: " in result.structured_content["snapshot"]
+
+
+async def test_describe_returns_dict(mcp_client: Client) -> None:
+    result = await mcp_client.call_tool("describe", {"locator": {"name": "Counter"}})
+    info = result.structured_content
+    assert info["class"] == "CharCounter"
+    assert info["custom_format"]["text"] == "0/20"
+    assert info["custom_format"]["attrs"]["max"] == 20
+
+
+async def test_wait_for_text_contains(mcp_client: Client) -> None:
+    await mcp_client.call_tool("click", {"locator": {"name": "Submit"}})
+    result = await mcp_client.call_tool(
+        "wait_for",
+        {"locator": {"name": "Status"}, "text_contains": "submitted"},
+    )
+    assert "submitted: " in result.structured_content["snapshot"]
+
+
+async def test_wait_for_times_out(mcp_client: Client) -> None:
+    with pytest.raises(ToolError) as exc:
+        await mcp_client.call_tool(
+            "wait_for",
+            {
+                "locator": {"name": "Status"},
+                "text": "never-happens",
+                "timeout_ms": 150,
+            },
+        )
+    assert "timeout" in str(exc.value).lower()

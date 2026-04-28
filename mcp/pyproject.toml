@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-godot-locator-mcp = "godot_locator_mcp.__main__:main"
+godot-locator-mcp = "godot_locator_mcp.server:main"
 
 [project.urls]
 Homepage = "https://github.com/SanitoGonzalez/godot-locator"

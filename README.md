@@ -31,13 +31,13 @@ Currently exposed: `snapshot(depth, skip_invisible)`, `click(node)`, `double_cli
 YAML-structured text snapshot of SceneTree. Only `Control` nodes are emitted; non-Control parents (`Window`, `CanvasLayer`, `Node2D`…) are walked through transparently so Controls nested under them still surface.
 
 ```yaml
-- VBoxContainer [Form]:
-  - Label [Title] "Welcome"
-  - LineEdit [NameInput ref=e1] placeholder="Name" text=""
-  - Button [SubmitButton ref=e2] "Submit" disabled
+- VBoxContainer #Form:
+  - Label #Title "Welcome"
+  - LineEdit #NameInput [ref=e1, placeholder="Name"]
+  - Button #SubmitButton "Submit" [ref=e2, disabled]
 ```
 
-Each line is `- <Class> [<name>[ ref=eN]] [ "<text>"] [ <key>="<val>"]* [ <flag>]* [:]`. Refs (`eN`) are stable instance ids — once issued, they keep pointing at the same node for follow-up `locate`/control calls — and are off by default; pass `tag_ref: true` (Playwright-style) to have them emitted for interactive nodes (`LineEdit` / `TextEdit` / `BaseButton`) and any node implementing the custom-format hook below.
+Each line is `- <Class> [#<name>] [ "<text>"] [ [<bracket items>]] [:]`, where bracket items are comma-separated and may be `ref=eN`, `key="val"` (string), `key=val` (numeric / bool — unquoted), or a bare flag. Brackets are omitted when there is nothing to put in them; numeric/bool values are unquoted. Refs (`eN`) are stable instance ids — once issued, they keep pointing at the same node for follow-up `locate`/control calls — and are off by default; pass `tag_ref: true` (Playwright-style) to have them emitted for interactive nodes (`LineEdit` / `TextEdit` / `BaseButton`) and any node implementing the custom-format hook below.
 
 #### Options
 | Name | Description | Default |
@@ -56,7 +56,7 @@ class_name HealthBar extends Control
 func _godot_locator_format() -> Dictionary:
     return {
         "text": "%d/%d" % [current, maximum],
-        "attrs": {"pct": str(int(100.0 * current / maximum))},
+        "attrs": {"pct": int(100.0 * current / maximum)},
         "flags": ["critical"] if current < maximum * 0.2 else [],
     }
 ```
@@ -70,7 +70,7 @@ public partial class HealthBar : Control
     public Dictionary _GodotLocatorFormat() => new()
     {
         ["text"] = $"{Current}/{Maximum}",
-        ["attrs"] = new Dictionary { ["pct"] = ((int)(100.0 * Current / Maximum)).ToString() },
+        ["attrs"] = new Dictionary { ["pct"] = (int)(100.0 * Current / Maximum) },
         ["flags"] = Current < Maximum * 0.2 ? new Array { "critical" } : new Array(),
     };
 }
@@ -79,14 +79,14 @@ public partial class HealthBar : Control
 Renders as:
 
 ```yaml
-- HealthBar [Player ref=e7] "30/100" pct="30" critical
+- HealthBar #Player "30/100" [ref=e7, pct=30, critical]
 ```
 
 | Field | Effect |
 | ----- | ------ |
-| `text` | overrides the built-in positional `"…"` (Label/Button/RichTextLabel default) |
-| `attrs` | merged after built-in attrs (e.g. LineEdit's `placeholder` / `text`) |
-| `flags` | appended after built-in flags (e.g. BaseButton's `disabled`) |
+| `text` | overrides the built-in positional `"…"` (Label/Button/RichTextLabel/LineEdit default) |
+| `attrs` | merged into the trailing bracket. `int`/`float`/`bool` values render unquoted; everything else is stringified and quoted. `null` values are dropped |
+| `flags` | bare tokens appended after `attrs` in the bracket (e.g. `BaseButton.disabled`) |
 
 All three keys are optional — return any subset.
 
@@ -131,17 +131,6 @@ Synthesize input on the located node. Each method asserts a single match (use a 
 | press_key | dispatch an `InputEventKey` (e.g. `"enter"`, `"ctrl+a"`) | focused node |
 | drag_to | press on this node, motion to target locator, release | Control / Node2D |
 | scroll | wheel-scroll by `dx`/`dy` ticks at the node's center | ScrollContainer / any |
-
-## [Tests](tests/)
-
-Integration tests launch a headless Godot per test, drive it over WebSocket, and assert against snapshots / observable state.
-
-```sh
-tests/run.sh              # all tests
-tests/run.sh -k snapshot  # forward args to pytest
-```
-
-Requires `godot` on PATH (or `GODOT_BIN=/path/to/godot`) and [`uv`](https://docs.astral.sh/uv/). Test projects live under `tests/projects/<name>/`; each is a real Godot project with `addons/godot-locator` symlinked back to this repo.
 
 ## [MCP](mcp/)
 
