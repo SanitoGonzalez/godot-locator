@@ -41,9 +41,8 @@ nav:
   - Home: index.md
   - Getting started: getting-started.md
   - Components:
-    - Godot plugin: plugin.md
-    - Python client: python.md
-    - MCP server: mcp.md
+    - Plugin: plugin.md
+    - MCP: mcp.md
     - CLI: cli.md
 
 markdown_extensions:
