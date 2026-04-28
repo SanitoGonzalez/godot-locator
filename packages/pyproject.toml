@@ -1,0 +1,20 @@
+[project]
+name = "godot-locator"
+version = "0.0.0"
+description = "Workspace root for godot-locator Python packages."
+requires-python = ">=3.11"
+
+[tool.uv.workspace]
+members = ["godot-locator-*"]
+
+[tool.uv.sources]
+godot-locator-client = { workspace = true }
+godot-locator-mcp = { workspace = true }
+godot-locator-cli = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "godot-locator-client",
+    "godot-locator-mcp",
+    "godot-locator-cli",
+]

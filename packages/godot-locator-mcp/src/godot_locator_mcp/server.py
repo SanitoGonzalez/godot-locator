@@ -25,7 +25,7 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
 
-from .client import LocatorClient, LocatorError
+from godot_locator_client import LocatorClient, LocatorError
 
 mcp: FastMCP = FastMCP(
     "Godot Locator MCP",
@@ -257,7 +257,7 @@ def _csv_set(s: str) -> set[str]:
     return set(filter(None, s.split(",")))
 
 
-def main() -> None:
+def main():
     global _snapshot_mode
     parser = argparse.ArgumentParser(
         prog="godot-locator-mcp",

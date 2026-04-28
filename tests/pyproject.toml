@@ -1,0 +1,30 @@
+[project]
+name = "godot-locator-tests"
+version = "0"
+description = "Integration tests driving a real Godot game with the godot-locator plugin loaded."
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=3.0",
+    "godot-locator-cli",
+    "godot-locator-client",
+    "godot-locator-mcp",
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "websockets>=13",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+godot-locator-client = { path = "../packages/godot-locator-client", editable = true }
+godot-locator-mcp = { path = "../packages/godot-locator-mcp", editable = true }
+godot-locator-cli = { path = "../packages/godot-locator-cli", editable = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["test_mcp", "test_cli"]
+addopts = "--import-mode=importlib"
+markers = [
+    "godot_project(name): name of the project under `tests/projects/` to spawn for `locator_client`",
+]

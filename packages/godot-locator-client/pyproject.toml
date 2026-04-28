@@ -1,0 +1,24 @@
+[project]
+name = "godot-locator-client"
+version = "0.1.0"
+description = "Async WebSocket client for the godot-locator runtime plugin. Shared by godot-locator-mcp and godot-locator-cli."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Sanito Gonzalez" }]
+keywords = ["client", "godot", "llm", "ui-automation", "playwright"]
+
+dependencies = [
+    "websockets>=13",
+]
+
+[project.urls]
+Homepage = "https://github.com/SanitoGonzalez/godot-locator"
+Repository = "https://github.com/SanitoGonzalez/godot-locator"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/godot_locator_client"]

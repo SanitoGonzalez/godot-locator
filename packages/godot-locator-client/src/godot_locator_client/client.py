@@ -26,6 +26,8 @@ class LocatorError(RuntimeError):
 
 class LocatorClient:
     def __init__(self, host: str = "127.0.0.1", port: int = 8282) -> None:
+        self.host = host
+        self.port = port
         self.url = f"ws://{host}:{port}"
         self._ws: ClientConnection | None = None
         self._next_id = 0
