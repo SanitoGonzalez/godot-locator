@@ -17,7 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
-Locator="*res://addons/godot-locator/server.gd"
+Locator="*uid://d5ybstxt2b26"
 
 [dotnet]
 
