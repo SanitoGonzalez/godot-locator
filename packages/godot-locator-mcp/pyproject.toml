@@ -10,7 +10,7 @@ keywords = ["mcp", "godot", "llm", "ui-automation", "playwright"]
 
 dependencies = [
     "fastmcp>=3.0",
-    "godot-locator-core",
+    "godot-locator-core>=0.1.0,<0.2.0",
     "websockets>=13",
 ]
 

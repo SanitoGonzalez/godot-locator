@@ -10,7 +10,7 @@ keywords = ["cli", "godot", "llm", "ui-automation", "playwright"]
 
 dependencies = [
     "click>=8.1",
-    "godot-locator-core",
+    "godot-locator-core>=0.1.0,<0.2.0",
 ]
 
 [project.scripts]

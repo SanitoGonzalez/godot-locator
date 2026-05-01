@@ -30,6 +30,24 @@ Godot game has exited. Session removed.
 **`launch` vs `attach`** — `launch` starts a new Godot process and attaches automatically, so it can store the process PID and detect exit immediately. `attach` connects to an already-running game and relies on the stale-on-connect detection above.
 
 
+## Picking the Godot Binary
+
+`launch` invokes whatever `godot` resolves to on your `PATH`. Set `GODOT_BIN` to override — useful when you keep multiple Godot versions side by side, or on macOS where the binary lives inside the `.app` bundle.
+
+```sh
+# Linux / Windows — point at a specific build
+export GODOT_BIN=/opt/godot/4.3/godot
+
+# macOS — reach into the .app bundle
+export GODOT_BIN="/Applications/Godot.app/Contents/MacOS/Godot"
+
+# Per-invocation override (no export)
+GODOT_BIN=~/builds/godot-4.4-rc1 godot-locator-cli launch ./my-game
+```
+
+`GODOT_BIN` is read on every `launch`, so changing it doesn't require restarting anything. `attach` doesn't use it — the binary has already been chosen by whoever started the running game.
+
+
 ## Resolution Order
 
 When a command runs, the session is resolved in this order:
