@@ -374,11 +374,15 @@ name = "godot-locator-cli"
 version = "0.1.0"
 source = { editable = "../packages/godot-locator-cli" }
 dependencies = [
+    { name = "click" },
     { name = "godot-locator-core" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "godot-locator-core", editable = "../packages/godot-locator-core" }]
+requires-dist = [
+    { name = "click", specifier = ">=8.1" },
+    { name = "godot-locator-core", editable = "../packages/godot-locator-core" },
+]
 
 [[package]]
 name = "godot-locator-core"

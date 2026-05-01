@@ -9,6 +9,7 @@ authors = [{ name = "Sanito Gonzalez" }]
 keywords = ["cli", "godot", "llm", "ui-automation", "playwright"]
 
 dependencies = [
+    "click>=8.1",
     "godot-locator-core",
 ]
 

@@ -28,11 +28,7 @@ const config: Config = {
     [
       'classic',
       {
-        docs: {
-          path: '../docs/main',
-          routeBasePath: 'docs',
-          sidebarPath: './sidebars.ts',
-        },
+        docs: false,
         blog: false,
         theme: {
           customCss: './src/css/custom.css',
@@ -83,12 +79,6 @@ const config: Config = {
         src: 'img/logo.svg',
       },
       items: [
-        {
-          type: 'docSidebar',
-          sidebarId: 'sidebar',
-          position: 'left',
-          label: 'Docs',
-        },
         {
           type: 'docSidebar',
           sidebarId: 'sidebar',

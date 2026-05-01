@@ -1,17 +1,25 @@
 # Website
 
-```bash
-npm install
-```
+Install dependencies:
 
 ```bash
-npm start
+bun install
 ```
 
-```bash
-npm run build
-```
+Start the local dev server with hot-reload at `http://localhost:3000`:
 
 ```bash
-npm run serve
+bun start
+```
+
+Build the static site into `build/`:
+
+```bash
+bun run build
+```
+
+Serve the production build locally to verify it before deploying:
+
+```bash
+bun run serve
 ```

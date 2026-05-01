@@ -13,15 +13,12 @@ from __future__ import annotations
 import asyncio
 import json
 from typing import Any
+from urllib.parse import urlparse
 
 import websockets
 from websockets.asyncio.client import ClientConnection
 
-
-class LocatorError(RuntimeError):
-    """Raised for both transport failures (socket refused, dropped) and
-    protocol-level errors (the Godot side returned an ``error`` field).
-    The MCP layer maps this to a tool error so the model sees the message."""
+from .errors import LocatorError
 
 
 class LocatorClient:
@@ -35,6 +32,17 @@ class LocatorClient:
         # is request/response with monotonically-increasing ids; without a
         # lock interleaved sends could swap responses.
         self._lock = asyncio.Lock()
+
+    @classmethod
+    def from_endpoint(cls, endpoint: str) -> LocatorClient:
+        """Build a client from a `ws://host:port` URL — the form session
+        files store. Falls back to defaults for missing components."""
+        parsed = urlparse(endpoint)
+        if parsed.scheme not in ("ws", ""):
+            raise ValueError(f"unsupported scheme in endpoint {endpoint!r} (need ws://)")
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or 8282
+        return cls(host=host, port=port)
 
     async def call(self, method: str, **params: Any) -> Any:
         async with self._lock:
