@@ -25,7 +25,7 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
 
-from godot_locator_client import LocatorClient, LocatorError
+from godot_locator_core import LocatorClient, LocatorError
 
 mcp: FastMCP = FastMCP(
     "Godot Locator MCP",

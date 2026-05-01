@@ -10,7 +10,7 @@ keywords = ["mcp", "godot", "llm", "ui-automation", "playwright"]
 
 dependencies = [
     "fastmcp>=3.0",
-    "godot-locator-client",
+    "godot-locator-core",
     "websockets>=13",
 ]
 
@@ -29,4 +29,4 @@ build-backend = "hatchling.build"
 packages = ["src/godot_locator_mcp"]
 
 [tool.uv.sources]
-godot-locator-client = { workspace = true }
+godot-locator-core = { workspace = true }

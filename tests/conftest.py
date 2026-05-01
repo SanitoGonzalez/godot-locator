@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
-from godot_locator_client import LocatorClient
+from godot_locator_core import LocatorClient
 
 PROJECTS_ROOT = Path(__file__).parent / "projects"
 STARTUP_TIMEOUT_S = 10.0

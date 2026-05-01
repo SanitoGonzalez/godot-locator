@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 members = [
     "godot-locator",
     "godot-locator-cli",
-    "godot-locator-client",
+    "godot-locator-core",
     "godot-locator-mcp",
 ]
 
@@ -385,7 +385,7 @@ source = { virtual = "." }
 [package.dev-dependencies]
 dev = [
     { name = "godot-locator-cli" },
-    { name = "godot-locator-client" },
+    { name = "godot-locator-core" },
     { name = "godot-locator-mcp" },
 ]
 
@@ -394,7 +394,7 @@ dev = [
 [package.metadata.requires-dev]
 dev = [
     { name = "godot-locator-cli", editable = "godot-locator-cli" },
-    { name = "godot-locator-client", editable = "godot-locator-client" },
+    { name = "godot-locator-core", editable = "godot-locator-core" },
     { name = "godot-locator-mcp", editable = "godot-locator-mcp" },
 ]
 
@@ -403,16 +403,16 @@ name = "godot-locator-cli"
 version = "0.1.0"
 source = { editable = "godot-locator-cli" }
 dependencies = [
-    { name = "godot-locator-client" },
+    { name = "godot-locator-core" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "godot-locator-client", editable = "godot-locator-client" }]
+requires-dist = [{ name = "godot-locator-core", editable = "godot-locator-core" }]
 
 [[package]]
-name = "godot-locator-client"
+name = "godot-locator-core"
 version = "0.1.0"
-source = { editable = "godot-locator-client" }
+source = { editable = "godot-locator-core" }
 dependencies = [
     { name = "websockets" },
 ]
@@ -426,14 +426,14 @@ version = "0.1.0"
 source = { editable = "godot-locator-mcp" }
 dependencies = [
     { name = "fastmcp" },
-    { name = "godot-locator-client" },
+    { name = "godot-locator-core" },
     { name = "websockets" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastmcp", specifier = ">=3.0" },
-    { name = "godot-locator-client", editable = "godot-locator-client" },
+    { name = "godot-locator-core", editable = "godot-locator-core" },
     { name = "websockets", specifier = ">=13" },
 ]
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 from fastmcp import Client
 
-from godot_locator_client import LocatorClient
+from godot_locator_core import LocatorClient
 from godot_locator_mcp import mcp
 from godot_locator_mcp.server import _set_client
 

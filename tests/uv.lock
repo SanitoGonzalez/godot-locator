@@ -374,16 +374,16 @@ name = "godot-locator-cli"
 version = "0.1.0"
 source = { editable = "../packages/godot-locator-cli" }
 dependencies = [
-    { name = "godot-locator-client" },
+    { name = "godot-locator-core" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "godot-locator-client", editable = "../packages/godot-locator-client" }]
+requires-dist = [{ name = "godot-locator-core", editable = "../packages/godot-locator-core" }]
 
 [[package]]
-name = "godot-locator-client"
+name = "godot-locator-core"
 version = "0.1.0"
-source = { editable = "../packages/godot-locator-client" }
+source = { editable = "../packages/godot-locator-core" }
 dependencies = [
     { name = "websockets" },
 ]
@@ -397,14 +397,14 @@ version = "0.1.0"
 source = { editable = "../packages/godot-locator-mcp" }
 dependencies = [
     { name = "fastmcp" },
-    { name = "godot-locator-client" },
+    { name = "godot-locator-core" },
     { name = "websockets" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastmcp", specifier = ">=3.0" },
-    { name = "godot-locator-client", editable = "../packages/godot-locator-client" },
+    { name = "godot-locator-core", editable = "../packages/godot-locator-core" },
     { name = "websockets", specifier = ">=13" },
 ]
 
@@ -415,7 +415,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "fastmcp" },
     { name = "godot-locator-cli" },
-    { name = "godot-locator-client" },
+    { name = "godot-locator-core" },
     { name = "godot-locator-mcp" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -426,7 +426,7 @@ dependencies = [
 requires-dist = [
     { name = "fastmcp", specifier = ">=3.0" },
     { name = "godot-locator-cli", editable = "../packages/godot-locator-cli" },
-    { name = "godot-locator-client", editable = "../packages/godot-locator-client" },
+    { name = "godot-locator-core", editable = "../packages/godot-locator-core" },
     { name = "godot-locator-mcp", editable = "../packages/godot-locator-mcp" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-asyncio", specifier = ">=0.24" },

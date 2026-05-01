@@ -8,13 +8,13 @@ requires-python = ">=3.11"
 members = ["godot-locator-*"]
 
 [tool.uv.sources]
-godot-locator-client = { workspace = true }
+godot-locator-core = { workspace = true }
 godot-locator-mcp = { workspace = true }
 godot-locator-cli = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "godot-locator-client",
+    "godot-locator-core",
     "godot-locator-mcp",
     "godot-locator-cli",
 ]

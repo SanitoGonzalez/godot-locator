@@ -13,7 +13,7 @@ import subprocess
 
 import pytest
 
-from godot_locator_client import LocatorClient
+from godot_locator_core import LocatorClient
 
 
 @pytest.mark.godot_project("simple-ui")

@@ -1,5 +1,5 @@
 [project]
-name = "godot-locator-client"
+name = "godot-locator-core"
 version = "0.1.0"
 description = "Async WebSocket client for the godot-locator runtime plugin. Shared by godot-locator-mcp and godot-locator-cli."
 readme = "README.md"
@@ -21,4 +21,4 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/godot_locator_client"]
+packages = ["src/godot_locator_core"]

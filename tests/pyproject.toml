@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=3.0",
     "godot-locator-cli",
-    "godot-locator-client",
+    "godot-locator-core",
     "godot-locator-mcp",
     "pytest>=8",
     "pytest-asyncio>=0.24",
@@ -17,7 +17,7 @@ dependencies = [
 package = false
 
 [tool.uv.sources]
-godot-locator-client = { path = "../packages/godot-locator-client", editable = true }
+godot-locator-core = { path = "../packages/godot-locator-core", editable = true }
 godot-locator-mcp = { path = "../packages/godot-locator-mcp", editable = true }
 godot-locator-cli = { path = "../packages/godot-locator-cli", editable = true }
 
