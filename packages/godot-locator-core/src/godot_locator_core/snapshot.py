@@ -46,11 +46,11 @@ def _render_entry(entry: dict[str, Any], depth: int, lines: list[str]) -> None:
     label = _render_label(entry)
     children = entry.get("children") or []
     if children:
-        lines.append(f"{indent}- {label}:")
+        lines.append(f"{indent}{label}:")
         for child in children:
             _render_entry(child, depth + 1, lines)
     else:
-        lines.append(f"{indent}- {label}")
+        lines.append(f"{indent}{label}")
 
 
 def _render_label(entry: dict[str, Any]) -> str:

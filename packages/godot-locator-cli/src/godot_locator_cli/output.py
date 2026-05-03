@@ -21,17 +21,6 @@ def emit_error(message: str) -> None:
     click.echo(message, err=True)
 
 
-def render_session_header(session: Session, tree_version: int | None = None) -> str:
-    lines = [
-        "### Session",
-        f"session: {session.name}",
-        f"endpoint: {session.endpoint}",
-    ]
-    if tree_version is not None:
-        lines.append(f"tree_version: {tree_version}")
-    return "\n".join(lines)
-
-
 def render_snapshot_block(snapshot: dict | None) -> str:
     return render_snapshot(snapshot) if snapshot else ""
 
@@ -42,10 +31,8 @@ def render_interaction(
     *,
     show_snapshot: bool = True,
 ) -> str:
-    """Format the bundled interaction response (`{snapshot, tree_version, mode}`)."""
     blocks: list[str] = []
     tree_version = result.get("tree_version") if result else None
-    blocks.append(render_session_header(session, tree_version=tree_version))
     if show_snapshot and result:
         rendered = render_snapshot_block(result.get("snapshot"))
         if rendered:

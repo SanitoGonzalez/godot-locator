@@ -23,13 +23,11 @@ async def snapshot_cmd(
     """Capture an accessibility snapshot of the SceneTree."""
     name_flag = ctx.obj.get("session") if ctx.obj else None
     params = {k: v for k, v in {"target": target, "depth": depth}.items() if v is not None}
-    async with with_session(name_flag) as (session, client):
+    async with with_session(name_flag) as (_, client):
         result = await client.call("snapshot", **params)
     if as_json:
         output.emit_json({"snapshot": result})
         return
-    output.emit(output.render_session_header(session))
     rendered = output.render_snapshot_block(result if isinstance(result, dict) else None)
     if rendered:
-        output.emit("")
         output.emit(rendered)
