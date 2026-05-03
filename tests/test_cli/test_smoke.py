@@ -19,7 +19,7 @@ from godot_locator_core import LocatorClient
 @pytest.mark.godot_project("simple-ui")
 async def test_cli_runs(locator_client: LocatorClient) -> None:
     result = subprocess.run(
-        ["godot-locator-cli"],
+        ["godot-locator-cli", "--version"],
         env={**os.environ, "GODOT_LOCATOR_PORT": str(locator_client.port)},
         capture_output=True,
         text=True,

@@ -25,7 +25,7 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
 
-from godot_locator_core import LocatorClient, LocatorError
+from godot_locator_core import LocatorClient, LocatorError, render_snapshot
 
 mcp: FastMCP = FastMCP(
     "Godot Locator MCP",
@@ -64,10 +64,15 @@ def _set_client(client: LocatorClient | None) -> None:
     _client = client
 
 
-def _apply_snapshot_mode(result: InteractionResult) -> InteractionResult:
+def _apply_snapshot_mode(result: dict[str, Any]) -> InteractionResult:
+    tree_version = int(result.get("tree_version", 0))
     if _snapshot_mode == "none":
-        return {"snapshot": "", "tree_version": result["tree_version"], "mode": "none"}
-    return result
+        return {"snapshot": "", "tree_version": tree_version, "mode": "none"}
+    return {
+        "snapshot": render_snapshot(result.get("snapshot")),
+        "tree_version": tree_version,
+        "mode": str(result.get("mode", "full")),
+    }
 
 
 async def _call(method: str, **params: Any) -> Any:
@@ -91,7 +96,7 @@ async def snapshot(
 ) -> str:
     """Capture accessibility snapshot of SceneTree"""
     params = {k: v for k, v in {"target": target, "depth": depth}.items() if v is not None}
-    return await _call("snapshot", **params)
+    return render_snapshot(await _call("snapshot", **params))
 
 @mcp.tool(
     tags={"core"},

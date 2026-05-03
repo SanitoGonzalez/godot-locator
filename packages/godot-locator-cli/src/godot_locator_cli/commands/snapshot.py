@@ -28,6 +28,8 @@ async def snapshot_cmd(
     if as_json:
         output.emit_json({"snapshot": result})
         return
-    output.emit(output.render_context(session))
-    output.emit("")
-    output.emit(output.render_snapshot(result if isinstance(result, str) else ""))
+    output.emit(output.render_session_header(session))
+    rendered = output.render_snapshot_block(result if isinstance(result, dict) else None)
+    if rendered:
+        output.emit("")
+        output.emit(rendered)

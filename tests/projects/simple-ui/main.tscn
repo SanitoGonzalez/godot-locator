@@ -1,9 +1,68 @@
 [gd_scene format=3 uid="uid://bqnlbyi6sxddv"]
 
-[node name="Control" type="Control" unique_id=94786245]
+[ext_resource type="Script" uid="uid://bb30rfmbcbil1" path="res://main.gd" id="1_ig7tw"]
+
+[node name="Root" type="Control" unique_id=1933604357]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_ig7tw")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=61474746]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=496218729]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Header" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1320303296]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MarginContainer/VBoxContainer/Header" unique_id=645553965]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "User Profile"
+
+[node name="CloseButton" type="Button" parent="MarginContainer/VBoxContainer/Header" unique_id=1397025800]
+layout_mode = 2
+text = "X"
+
+[node name="FormPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer" unique_id=204777438]
+layout_mode = 2
+
+[node name="FormBox" type="VBoxContainer" parent="MarginContainer/VBoxContainer/FormPanel" unique_id=664122501]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NameInput" type="LineEdit" parent="MarginContainer/VBoxContainer/FormPanel/FormBox" unique_id=33509803]
+layout_mode = 2
+placeholder_text = "Full name"
+
+[node name="EmailInput" type="LineEdit" parent="MarginContainer/VBoxContainer/FormPanel/FormBox" unique_id=880730510]
+layout_mode = 2
+placeholder_text = "Email address"
+
+[node name="Actions" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1321052907]
+layout_mode = 2
+alignment = 2
+
+[node name="CancelButton" type="Button" parent="MarginContainer/VBoxContainer/Actions" unique_id=1602772910]
+layout_mode = 2
+text = "Cancel"
+
+[node name="SubmitButton" type="Button" parent="MarginContainer/VBoxContainer/Actions" unique_id=239818590]
+layout_mode = 2
+disabled = true
+text = "Submit"

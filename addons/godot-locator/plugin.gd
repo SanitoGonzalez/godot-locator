@@ -2,7 +2,7 @@
 extends EditorPlugin
 
 const AUTOLOAD_NAME := "Locator"
-const AUTOLOAD_PATH := "res://addons/godot-locator/server.gd"
+const AUTOLOAD_PATH := "res://addons/godot-locator/locator.gd"
 
 
 func _enter_tree() -> void:

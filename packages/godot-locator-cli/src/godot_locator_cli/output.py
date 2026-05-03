@@ -10,7 +10,7 @@ from typing import Any
 
 import click
 
-from godot_locator_core import Session
+from godot_locator_core import Session, render_snapshot
 
 
 def emit_json(payload: Any) -> None:
@@ -21,9 +21,9 @@ def emit_error(message: str) -> None:
     click.echo(message, err=True)
 
 
-def render_context(session: Session, tree_version: int | None = None) -> str:
+def render_session_header(session: Session, tree_version: int | None = None) -> str:
     lines = [
-        "### Context",
+        "### Session",
         f"session: {session.name}",
         f"endpoint: {session.endpoint}",
     ]
@@ -32,8 +32,8 @@ def render_context(session: Session, tree_version: int | None = None) -> str:
     return "\n".join(lines)
 
 
-def render_snapshot(snapshot: str) -> str:
-    return "### Snapshot\n" + (snapshot.rstrip() if snapshot else "")
+def render_snapshot_block(snapshot: dict | None) -> str:
+    return render_snapshot(snapshot) if snapshot else ""
 
 
 def render_interaction(
@@ -45,9 +45,11 @@ def render_interaction(
     """Format the bundled interaction response (`{snapshot, tree_version, mode}`)."""
     blocks: list[str] = []
     tree_version = result.get("tree_version") if result else None
-    blocks.append(render_context(session, tree_version=tree_version))
-    if show_snapshot and result and result.get("snapshot"):
-        blocks.append(render_snapshot(result["snapshot"]))
+    blocks.append(render_session_header(session, tree_version=tree_version))
+    if show_snapshot and result:
+        rendered = render_snapshot_block(result.get("snapshot"))
+        if rendered:
+            blocks.append(rendered)
     return "\n\n".join(blocks)
 
 

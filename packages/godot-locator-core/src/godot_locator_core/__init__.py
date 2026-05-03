@@ -22,6 +22,7 @@ from .sessions import (
     SessionStore,
     resolve_session_name,
 )
+from .snapshot import render as render_snapshot
 
 __all__ = [
     "DEFAULT_NAME",
@@ -38,6 +39,7 @@ __all__ = [
     "godot_bin",
     "is_alive",
     "launch",
+    "render_snapshot",
     "resolve_session_name",
     "sessions_dir",
     "terminate",
