@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Godot Locator',
-  tagline: 'Locate Godot scenes, scripts, and resources',
+  tagline: 'Let coding agents explore and interact with your Godot games',
   favicon: 'img/favicon.ico',
 
   future: {
