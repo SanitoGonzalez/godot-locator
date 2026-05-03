@@ -24,10 +24,11 @@ While writing games became easier thanks to coding agents, verification is still
 
 |Types|Coverage|Cons|
 |-----|--------|----|
+|human QA|full gameplay|slow, doesn't scale, inconsistent|
 |unit tests|pure logic|no scene/gameplay coverage|
-|scripted tests|(limited) game play|changes break the test scenario|
-|automated tests (screenshots + [VLM](https://en.wikipedia.org/wiki/Vision-language_model))|game play|slower and costs more than LLMs|
-|automated tests (texts + [LLM](https://en.wikipedia.org/wiki/Large_language_model))|game play|no visual verification (See [hybrid workflow](#workflow-hybrid-testing-with-screenshots) as compensation)|
+|scripted tests|limited gameplay|changes break the test scenario|
+|automated tests (screenshots + [VLM](https://en.wikipedia.org/wiki/Vision-language_model))|gameplay|slower and costs more than LLMs|
+|automated tests (texts + [LLM](https://en.wikipedia.org/wiki/Large_language_model))|gameplay|no visual verification (See [hybrid workflow](#workflow-hybrid-testing-with-screenshots) as compensation)|
 
 Godot Locator powers the last approach — a Playwright-style API over the live SceneTree that coding agents can drive directly.
 
@@ -47,10 +48,11 @@ Launch <path-to-godot-project> and click any button you see.
 
 See [documentation](https://sanitogonzalez.github.io/godot-locator/) for the manual setup.
 
-## Workflow:
+## Workflow: automated testing
 
-## Workflow: hybrid testing with screenshots 
+## Workflow: automated testing with final screenshots 
 
+## Workflow: infinite gameplay loop
 
 ---
 
