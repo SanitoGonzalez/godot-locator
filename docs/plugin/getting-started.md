@@ -13,6 +13,12 @@ Enable the addon in *Project Settings → Plugins*. It registers a `Locator` aut
 | `GODOT_LOCATOR_SERVER_ENABLED` | set to `false` to skip the WebSocket server. The autoload's [direct API](#direct-api) stays available to your code | `true` |
 | `GODOT_LOCATOR_EVAL_ENABLED` | set to `true` to allow the `evaluate` wire method to run GDScript expressions in the running game. See [Eval](#eval) below | `false` |
 
+### Release builds
+
+The plugin is **off in release exports** unless you opt in. Add `locator` to *Project → Export → [preset] → Features → Custom (comma-separated)* to enable it for a specific preset (e.g. an internal QA build). Debug builds always run the plugin regardless of the tag.
+
+When the gate is closed, no WebSocket server starts and no port is opened — the `Locator` autoload exists but its `_ready()` returns early. Direct API calls from your own code (`Locator.snapshot()`, `Locator.context_provider = …`) are safe to keep in shipping code; they just won't reach a server.
+
 ### Eval
 
 The `evaluate` method runs a single GDScript expression inside the running game and returns its value. Useful for inspecting state that isn't in the snapshot (HP, inventory, internal flags, current scene, etc.):

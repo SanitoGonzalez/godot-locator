@@ -37,6 +37,10 @@ var _server: Node
 
 
 func _ready() -> void:
+	# Release builds must opt in via the `locator` export feature tag; debug
+	# builds always enable. Keeps shipping exports clean by default.
+	if not OS.is_debug_build() and not OS.has_feature("locator"):
+		return
 	_server = ServerModule.new()
 	_server.name = "Server"
 	_server.locator = self
