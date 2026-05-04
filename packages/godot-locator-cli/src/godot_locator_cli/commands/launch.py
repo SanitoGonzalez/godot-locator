@@ -40,6 +40,16 @@ def launch_cmd(
     name_flag = ctx.obj.get("session") if ctx.obj else None
     name = resolve_session_name(name_flag)
 
+    store = SessionStore()
+    if store.exists(name):
+        existing = store.get(name)
+        if existing.pid is not None and is_alive(existing.pid):
+            core_terminate(existing.pid)
+            output.emit(f"Stopped existing session '{name}' (pid={existing.pid}) at {existing.endpoint}")
+        else:
+            output.emit(f"Removed stale session '{name}' (pid={existing.pid} already exited)")
+        store.delete(name)
+
     chosen_port = port if port is not None else find_free_port()
     proc = core_launch(project_path.resolve(), headed=headed, port=chosen_port, host=host)
     try:
@@ -51,7 +61,7 @@ def launch_cmd(
         raise click.exceptions.Exit(1) from e
 
     session = Session(name=name, endpoint=proc.endpoint, pid=proc.pid)
-    SessionStore().save(session)
+    store.save(session)
 
     output.emit(f"launched godot (pid={proc.pid}) on {proc.endpoint}")
     output.emit(f"saved session '{name}'")
