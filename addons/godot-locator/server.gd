@@ -84,8 +84,6 @@ func _handle_packet(peer: WebSocketPeer, data: PackedByteArray) -> void:
 	if method == "":
 		err = "missing method"
 	else:
-		# `await` covers both sync handlers (returns the value as-is) and
-		# coroutine handlers like `wait_for` that suspend on a timer.
 		result = await locator.dispatch(method, params)
 		if result is Dictionary and result.has("__error"):
 			err = result["__error"]

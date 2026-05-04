@@ -21,8 +21,11 @@ import argparse
 import os
 from typing import Annotated, Any, TypedDict
 
+import base64
+
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
+from fastmcp.utilities.types import Image
 from pydantic import Field
 
 from godot_locator_core import LocatorClient, LocatorError, render_snapshot
@@ -103,19 +106,41 @@ async def snapshot(
     annotations={"readOnlyHint": True},
 )
 async def screenshot(
-    target: Annotated[NodeReference | None, Field(description="Exact target node reference")] = None,
-    type: Annotated[str, Field(description='"png" (default), or "jpeg"')] = "png",
-) -> str:
-    """Take a screenshot of the app"""
-    ...
+    ref: Annotated[NodeReference | None, Field(description="Crop to this Control's global rect.")] = None,
+    format: Annotated[str, Field(description='"png" (default) or "jpeg".')] = "png",
+) -> Image:
+    """Capture the running game's viewport as an image.
+
+    Useful when the textual snapshot can't show what you need: custom-drawn
+    nodes, sprites, particles, theme regressions, layout glitches.
+    """
+    params: dict[str, Any] = {"format": format}
+    if ref:
+        params["ref"] = ref
+    result = await _call("screenshot", **params)
+    if not isinstance(result, dict) or "data" not in result:
+        raise ToolError("screenshot returned no data")
+    return Image(data=base64.b64decode(result["data"]), format=result.get("format", format))
+
 
 @mcp.tool(tags={"core"})
 async def evaluate(
-    expression: Annotated[str, Field(description="{code} or {var node = <target>; code} when target is provided")],
-    target: Annotated[NodeReference | None, Field(description="Exact target node reference")] = None,
-) -> str:
-    """Evaluate GDScript expression on scene or node"""
-    ...
+    expression: Annotated[str, Field(description="A single GDScript expression. When `ref` is set, `node` is bound to the resolved Node.")],
+    ref: Annotated[NodeReference | None, Field(description="Bind this node as the local variable `node`.")] = None,
+) -> Any:
+    """Evaluate a GDScript expression in the running game.
+
+    GDScript syntax — even on C# projects, use `node.get_name()`, not
+    `node.GetName()`. Single-expression only (no `var`/`func`/multi-line).
+    Requires `GODOT_LOCATOR_EVAL_ENABLED=true` on the game process.
+    """
+    params: dict[str, Any] = {"expression": expression}
+    if ref:
+        params["ref"] = ref
+    result = await _call("evaluate", **params)
+    if isinstance(result, dict) and "value" in result:
+        return result["value"]
+    return result
 
 @mcp.tool(tags={"core"})
 async def click(
@@ -123,82 +148,61 @@ async def click(
     doubleClick: bool = False,
     button: Button = "left",
 ) -> InteractionResult:
-    """Click an UI node in the SceneTree."""
-    return _apply_snapshot_mode(await _call("click", ref=ref))
+    """Click a UI node in the SceneTree."""
+    method = "double_click" if doubleClick else "click"
+    return _apply_snapshot_mode(await _call(method, ref=ref, button=button))
+
+
+@mcp.tool(tags={"core"})
+async def fill(
+    ref: NodeReference,
+    text: Annotated[str, Field(description="Replacement text. The field is cleared, then set; `text_changed` is emitted.")],
+) -> InteractionResult:
+    """Replace the text of a LineEdit / TextEdit by ref (atomic). Errors on other node types.
+
+    Returns the bundled post-interaction state — see `click` for the response shape.
+    """
+    return _apply_snapshot_mode(await _call("fill", ref=ref, text=text))
 
 
 @mcp.tool(name="type", tags={"core"})
 async def type_(
-    ref: NodeReference,
-    text: Annotated[str, Field(description="Replacement text. The field is cleared, then set; `text_changed` is emitted.")],
+    text: Annotated[str, Field(description="Text to type into the currently focused Control. One InputEventKey per character.")],
 ) -> InteractionResult:
-    """Replace the text of a LineEdit / TextEdit. Errors on other node types.
+    """Type into the currently focused Control via synthesized key events.
 
-    Returns the bundled post-interaction state — see `click` for the response shape.
+    Use when the game itself decides which control receives input (e.g. a
+    chat box that's already focused). For atomic field replacement, use
+    `fill` with a ref instead. Errors when no Control is focused.
     """
-    return _apply_snapshot_mode(await _call("type", ref=ref, text=text))
+    return _apply_snapshot_mode(await _call("type", text=text))
 
 
 @mcp.tool(tags={"core"})
-async def wait_for(
-    ref: NodeReference,
-    text: Annotated[str | None, Field(
-        default=None,
-        description="Match exactly when the resolved node's text equals this.",
-    )] = None,
-    text_contains: Annotated[str | None, Field(
-        default=None,
-        description="Match when the resolved node's text contains this substring.",
-    )] = None,
-    count: Annotated[int | None, Field(
-        default=None,
-        description="Match when there are exactly this many locator matches.",
-    )] = None,
-    exists: Annotated[bool, Field(
-        default=False,
-        description="Match when at least one node matches.",
-    )] = False,
-    missing: Annotated[bool, Field(
-        default=False,
-        description="Match when zero nodes match.",
-    )] = False,
-    timeout_ms: Annotated[int, Field(
-        default=2000, ge=50,
-        description="Give up after this many milliseconds.",
-    )] = 2000,
-    interval_ms: Annotated[int, Field(
-        default=50, ge=10,
-        description="Poll every this many milliseconds.",
-    )] = 50,
+async def press(
+    key: Annotated[str, Field(description="Key name: 'enter', 'escape', 'arrowleft', 'f1', or single chars like 'a' / '1'.")],
 ) -> InteractionResult:
-    """Poll the locator until a predicate holds, or time out.
+    """Press a single keyboard key (press + release).
 
-    Use after an async interaction (signal, tween, network call) where the next
-    snapshot might not yet reflect the new state. At least one of
-    ``text`` / ``text_contains`` / ``count`` / ``exists`` / ``missing`` must
-    be set; multiple conditions AND-combine. ``text`` and ``text_contains``
-    only fire when the ref resolves to exactly one node.
-
-    Returns the bundled post-condition state — see ``click`` for the response
-    shape. Errors with ``wait_for: timeout ...`` if the condition isn't met
-    in time.
+    For typing text, use `fill` or `type`. For game-logic-level inputs that
+    should respect the player's keyboard/gamepad mappings, use `action`.
     """
-    params: dict[str, Any] = {
-        "ref": ref,
-        "timeout_ms": timeout_ms,
-        "interval_ms": interval_ms,
-    }
-    if text is not None:
-        params["text"] = text
-    if text_contains is not None:
-        params["text_contains"] = text_contains
-    if count is not None:
-        params["count"] = count
-    if exists:
-        params["exists"] = True
-    if missing:
-        params["missing"] = True
-    return _apply_snapshot_mode(await _call("wait_for", **params))
+    return _apply_snapshot_mode(await _call("press", key=key))
+
+
+@mcp.tool(tags={"core"})
+async def action(
+    name: Annotated[str, Field(description="Godot action name registered in Project Settings → Input Map.")],
+    mode: Annotated[str, Field(description='"tap" (default; press+release), "hold" (press only), or "release".')] = "tap",
+) -> InteractionResult:
+    """Drive a Godot input action by name.
+
+    Device-agnostic: the action fires regardless of whether the player
+    bound it to keyboard, gamepad, or mouse. `tap` is the typical choice
+    — `is_action_just_pressed` will see it. Use `hold`/`release` pairs
+    for sustained inputs (e.g., walking).
+    """
+    return _apply_snapshot_mode(await _call("action", name=name, mode=mode))
 
 
 @mcp.tool(tags={"mouse"})

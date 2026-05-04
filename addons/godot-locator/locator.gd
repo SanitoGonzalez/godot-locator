@@ -2,7 +2,7 @@ extends Node
 
 ## Runtime locator API. Registered as the `Locator` autoload by the
 ## EditorPlugin in `plugin.gd`. Holds ref tracking, structured snapshot,
-## locator resolution, and input synthesis. The WebSocket transport in
+## ref resolution, and input synthesis. The WebSocket transport in
 ## `server.gd` is a thin child node that delegates wire methods here.
 
 ## Custom-format hook. A node implementing `_godot_locator_format() -> Dictionary`
@@ -11,6 +11,11 @@ extends Node
 ## .NET binding registers public methods under their C# name verbatim.
 const FORMAT_METHOD := "_godot_locator_format"
 const FORMAT_METHOD_CS := "_GodotLocatorFormat"
+
+## Env flag that opts a game process into the `evaluate` wire method.
+## Eval has full GDScript-expression access to the running game; gating it
+## prevents accidental enablement in shipping builds.
+const EVAL_ENV := "GODOT_LOCATOR_EVAL_ENABLED"
 
 const ServerModule := preload("res://addons/godot-locator/server.gd")
 
@@ -22,7 +27,7 @@ var context_provider: Callable = Callable()
 
 # Stable ref ids: instance_id → sequential ref number, persistent across
 # calls so a ref handed out by snapshot keeps pointing at the same node
-# for later locate/control calls.
+# for later click/fill calls.
 var _snapshot_ref_by_iid: Dictionary = {}
 var _snapshot_ref_counter: int = 0
 # Monotonic counter bumped on every interaction response. Lets users detect drift
@@ -54,9 +59,16 @@ func snapshot(depth: int = 0, show_invisible: bool = false) -> Dictionary:
 	return result
 
 
-## Synthesize a left-click at the node's center. Control or Node2D.
-func click(node: Node) -> void:
-	_push_mouse_click(node, MOUSE_BUTTON_LEFT, false)
+## Synthesize a click at the node's center. Control or Node2D.
+## `button` is a Godot `MOUSE_BUTTON_*` constant.
+func click(node: Node, button: int = MOUSE_BUTTON_LEFT) -> void:
+	_push_mouse_click(node, button, false)
+
+
+## Synthesize a double-click at the node's center. Control or Node2D.
+## `button` is a Godot `MOUSE_BUTTON_*` constant.
+func double_click(node: Node, button: int = MOUSE_BUTTON_LEFT) -> void:
+	_push_mouse_click(node, button, true)
 
 
 ## Replace `node.text` with `text` (clears, then types). `node` must be a
@@ -80,13 +92,143 @@ func fill(node: Node, text: String) -> bool:
 	return false
 
 
+## Synthesize keyboard input into the currently-focused Control. Pushes one
+## InputEventKey per character with `unicode` set; LineEdit/TextEdit consume
+## these via their normal `_gui_input` path. Returns false if no Control is
+## focused.
+func type(text: String) -> bool:
+	var vp := get_viewport()
+	if vp == null or vp.gui_get_focus_owner() == null:
+		return false
+	for c in text:
+		var event := InputEventKey.new()
+		event.pressed = true
+		event.unicode = c.unicode_at(0)
+		vp.push_input(event)
+	return true
+
+
+## Synthesize a press+release of a single keyboard key. `key_name` accepts
+## anything `OS.find_keycode_from_string` understands ("Enter", "Escape",
+## "F1", "A", "Left"), case-insensitively. Also accepts `arrow*` aliases
+## ("arrowleft" → Left). Returns false on unknown names.
+func press(key_name: String) -> bool:
+	var keycode := _parse_key(key_name)
+	if keycode == 0:
+		return false
+	var vp := get_viewport()
+	if vp == null:
+		return false
+	var down := InputEventKey.new()
+	down.keycode = keycode
+	down.physical_keycode = keycode
+	down.pressed = true
+	var up := InputEventKey.new()
+	up.keycode = keycode
+	up.physical_keycode = keycode
+	up.pressed = false
+	vp.push_input(down)
+	vp.push_input(up)
+	return true
+
+
+## Drive a Godot input action by name. `mode` is "tap" (default; press +
+## release on the same call), "hold" (press only — leaves the action held),
+## or "release". Returns false if the action isn't in `InputMap`.
+func action(name: String, mode: String = "tap") -> bool:
+	if not InputMap.has_action(name):
+		return false
+	match mode:
+		"tap":
+			Input.action_press(name)
+			Input.action_release(name)
+		"hold":
+			Input.action_press(name)
+		"release":
+			Input.action_release(name)
+		_:
+			return false
+	return true
+
+
+## Capture a viewport screenshot. When `target` is a Control, crops to its
+## global rect. `format` is "png" or "jpeg". Returns a dict
+## `{format, width, height, data}` where `data` is base64-encoded bytes.
+func screenshot(target: Node = null, format: String = "png") -> Dictionary:
+	var vp := get_viewport()
+	if vp == null:
+		return {"__error": "no viewport"}
+	var img: Image = vp.get_texture().get_image()
+	if target != null and target is Control:
+		var rect := (target as Control).get_global_rect()
+		var vp_rect := Rect2(Vector2.ZERO, vp.get_visible_rect().size)
+		rect = rect.intersection(vp_rect)
+		if rect.size.x <= 0 or rect.size.y <= 0:
+			return {"__error": "target rect is outside the viewport"}
+		img = img.get_region(Rect2i(rect.position, rect.size))
+	var bytes: PackedByteArray
+	match format:
+		"png":  bytes = img.save_png_to_buffer()
+		"jpeg": bytes = img.save_jpg_to_buffer(0.85)
+		_: return {"__error": "format must be png or jpeg, got %s" % format}
+	return {
+		"format": format,
+		"width": img.get_width(),
+		"height": img.get_height(),
+		"data": Marshalls.raw_to_base64(bytes),
+	}
+
+
+## Evaluate a single GDScript expression. When `node` is provided, exposes
+## it as the input variable `node`. Gated by `GODOT_LOCATOR_EVAL_ENABLED`
+## — eval has full game-state access, so it must be opted into per process.
+## Note: GDScript syntax only; on C# projects use `node.get_name()`, not
+## `node.GetName()`.
+func evaluate(code: String, node: Node = null) -> Variant:
+	if OS.get_environment(EVAL_ENV).to_lower() != "true":
+		return {"__error": "eval is disabled — set %s=true on the game process to enable" % EVAL_ENV}
+	var expr := Expression.new()
+	var inputs := PackedStringArray()
+	var values: Array = []
+	if node != null:
+		inputs.append("node")
+		values.append(node)
+	var parse_err := expr.parse(code, inputs)
+	if parse_err != OK:
+		return {"__error": "parse: %s" % expr.get_error_text()}
+	var result: Variant = expr.execute(values, self, true)
+	if expr.has_execute_failed():
+		return {"__error": "execute: %s" % expr.get_error_text()}
+	return {"value": result}
+
+
+func _parse_key(name: String) -> int:
+	var n := name.strip_edges().to_lower()
+	if n == "":
+		return 0
+	if n.begins_with("arrow"):
+		n = n.substr(5)
+	# OS.find_keycode_from_string is case-sensitive on the leading char for
+	# multi-letter names ("Enter" works, "enter" doesn't), so capitalize.
+	var k := OS.find_keycode_from_string(n.capitalize())
+	if k == 0:
+		return 0
+	return k & KEY_CODE_MASK
+
+
 # --- wire dispatch ------------------------------------------------------------
 
 func dispatch(method: String, params: Dictionary) -> Variant:
 	match method:
-		"snapshot": return _handle_snapshot(params)
-		"click":    return _handle_click(params)
-		"fill":     return _handle_fill(params)
+		"snapshot":     return _handle_snapshot(params)
+		"click":        return _handle_click(params)
+		"double_click": return _handle_double_click(params)
+		"fill":         return _handle_fill(params)
+		"type":         return _handle_type(params)
+		"press":        return _handle_press(params)
+		"action":       return _handle_action(params)
+		"screenshot":   return _handle_screenshot(params)
+		"evaluate":     return _handle_evaluate(params)
 		_: return {"__error": "unknown method: %s" % method}
 
 
@@ -98,21 +240,98 @@ func _handle_snapshot(params: Dictionary) -> Variant:
 
 
 func _handle_click(params: Dictionary) -> Variant:
-	var resolved: Variant = _resolve_one(params)
+	var resolved: Variant = _resolve_ref(params)
 	if resolved is Dictionary:
 		return resolved
-	click(resolved)
+	var button: Variant = _parse_button(params)
+	if button is Dictionary:
+		return button
+	click(resolved, button)
 	return _interaction_response(params)
 
 
+func _handle_double_click(params: Dictionary) -> Variant:
+	var resolved: Variant = _resolve_ref(params)
+	if resolved is Dictionary:
+		return resolved
+	var button: Variant = _parse_button(params)
+	if button is Dictionary:
+		return button
+	double_click(resolved, button)
+	return _interaction_response(params)
+
+
+func _parse_button(params: Dictionary) -> Variant:
+	var name: String = str(params.get("button", "left"))
+	match name:
+		"left":   return MOUSE_BUTTON_LEFT
+		"right":  return MOUSE_BUTTON_RIGHT
+		"middle": return MOUSE_BUTTON_MIDDLE
+	return {"__error": "button must be left/right/middle, got %s" % name}
+
+
 func _handle_fill(params: Dictionary) -> Variant:
-	var resolved: Variant = _resolve_one(params)
+	var resolved: Variant = _resolve_ref(params)
 	if resolved is Dictionary:
 		return resolved
 	var text: String = str(params.get("text", ""))
 	if not fill(resolved, text):
 		return {"__error": "fill: node is not LineEdit/TextEdit (got %s)" % resolved.get_class()}
 	return _interaction_response(params)
+
+
+func _handle_type(params: Dictionary) -> Variant:
+	var text: String = str(params.get("text", ""))
+	if not type(text):
+		return {"__error": "type: no Control is focused to receive keyboard input"}
+	return _interaction_response(params)
+
+
+func _handle_press(params: Dictionary) -> Variant:
+	var key_name: String = str(params.get("key", ""))
+	if key_name == "":
+		return {"__error": "key is required (e.g. \"enter\", \"escape\", \"arrowleft\", \"f1\")"}
+	if not press(key_name):
+		return {"__error": "press: unknown key \"%s\"" % key_name}
+	return _interaction_response(params)
+
+
+func _handle_action(params: Dictionary) -> Variant:
+	var action_name: String = str(params.get("name", ""))
+	if action_name == "":
+		return {"__error": "action name is required"}
+	if not InputMap.has_action(action_name):
+		return {"__error": "unknown action: \"%s\" (not in InputMap)" % action_name}
+	var mode: String = str(params.get("mode", "tap"))
+	if not action(action_name, mode):
+		return {"__error": "action mode must be tap/hold/release, got \"%s\"" % mode}
+	return _interaction_response(params)
+
+
+func _handle_screenshot(params: Dictionary) -> Variant:
+	var target: Node = null
+	var ref_val: Variant = params.get("ref", null)
+	if ref_val is String and ref_val != "":
+		var resolved: Variant = _resolve_ref(params)
+		if resolved is Dictionary:
+			return resolved
+		target = resolved
+	var fmt: String = str(params.get("format", "png"))
+	return screenshot(target, fmt)
+
+
+func _handle_evaluate(params: Dictionary) -> Variant:
+	var code: String = str(params.get("expression", ""))
+	if code == "":
+		return {"__error": "expression is required"}
+	var node: Node = null
+	var ref_val: Variant = params.get("ref", null)
+	if ref_val is String and ref_val != "":
+		var resolved: Variant = _resolve_ref(params)
+		if resolved is Dictionary:
+			return resolved
+		node = resolved
+	return evaluate(code, node)
 
 
 func _snapshot_walk(node: Node, depth: int, max_depth: int, show_invisible: bool, out: Array) -> void:
@@ -232,61 +451,22 @@ func _custom_format_method(node: Node) -> String:
 	return ""
 
 
-# Visible text content of a node, for `text:` locator matches.
-func _node_text(node: Node) -> String:
-	if node is Label or node is Button or node is CheckBox:
-		return node.text
-	if node is RichTextLabel:
-		return (node as RichTextLabel).get_parsed_text()
-	return ""
+# --- ref resolution -----------------------------------------------------------
 
-
-# --- locator resolution -------------------------------------------------------
-
-# Resolve `params.locator` to exactly one node, or return an `__error` dict.
-# The control verbs all funnel through here so the "single match required"
-# contract from the README is enforced in one place.
-func _resolve_one(params: Dictionary) -> Variant:
-	var loc: Variant = params.get("locator", null)
-	if not (loc is Dictionary):
-		return {"__error": "locator must be an object, got %s" % JSON.stringify(loc)}
-	var matches := _resolve_locator(loc)
-	if matches.is_empty():
-		return {"__error": "no matches for locator: %s" % JSON.stringify(loc)}
-	if matches.size() > 1:
-		return {"__error": "expected a single match, got %d for locator: %s" % [matches.size(), JSON.stringify(loc)]}
-	return matches[0]
-
-
-func _resolve_locator(loc: Dictionary) -> Array:
-	var matches: Array = []
-	for child in get_tree().root.get_children():
-		_walk_match(child, loc, matches)
-	return matches
-
-
-func _walk_match(node: Node, loc: Dictionary, out: Array) -> void:
-	if _node_matches(node, loc):
-		out.append(node)
-	for child in node.get_children():
-		_walk_match(child, loc, out)
-
-
-func _node_matches(node: Node, loc: Dictionary) -> bool:
-	if loc.has("name") and str(node.name) != str(loc["name"]):
-		return false
-	if loc.has("class"):
-		var want: String = str(loc["class"])
-		if _class_name_of(node) != want and node.get_class() != want:
-			return false
-	if loc.has("text") and _node_text(node) != str(loc["text"]):
-		return false
-	if loc.has("ref"):
-		var want_ref: String = str(loc["ref"])
-		var iid := node.get_instance_id()
-		if not _snapshot_ref_by_iid.has(iid) or "e%d" % _snapshot_ref_by_iid[iid] != want_ref:
-			return false
-	return true
+# Resolve `params.ref` to a live node, or return an `__error` dict.
+# Refs are handed out by `snapshot()` and survive across calls until the
+# referenced node is freed.
+func _resolve_ref(params: Dictionary) -> Variant:
+	var ref: Variant = params.get("ref", null)
+	if not (ref is String) or ref == "":
+		return {"__error": "ref is required (e.g. \"e15\")"}
+	for iid in _snapshot_ref_by_iid:
+		if "e%d" % _snapshot_ref_by_iid[iid] == ref:
+			var node: Object = instance_from_id(iid)
+			if node == null or not (node is Node):
+				return {"__error": "ref %s points to a freed node" % ref}
+			return node
+	return {"__error": "unknown ref: %s" % ref}
 
 
 # --- input synthesis ----------------------------------------------------------
@@ -327,9 +507,7 @@ func _node_center(node: Node) -> Vector2:
 # --- response builder ---------------------------------------------------------
 
 # Bundle the post-interaction state into a single response so callers don't
-# need a follow-up snapshot. `tag_ref` defaults to true here (unlike
-# `snapshot()` which mirrors the wire default of false) — agents acting on
-# the snapshot almost always want refs to address nodes in the next call.
+# need a follow-up snapshot.
 func _interaction_response(params: Dictionary) -> Dictionary:
 	_snapshot_version += 1
 	return {

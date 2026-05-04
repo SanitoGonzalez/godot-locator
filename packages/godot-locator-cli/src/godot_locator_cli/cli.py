@@ -16,8 +16,17 @@ from godot_locator_core import (
 
 from . import output
 from .commands.attach import attach_cmd, detach_cmd
-from .commands.interaction import click_cmd, type_cmd, wait_for_cmd
+from .commands.evaluate import eval_cmd
+from .commands.interaction import (
+    action_cmd,
+    click_cmd,
+    dblclick_cmd,
+    fill_cmd,
+    press_cmd,
+    type_cmd,
+)
 from .commands.launch import launch_cmd, terminate_cmd
+from .commands.screenshot import screenshot_cmd
 from .commands.sessions import sessions_group
 from .commands.snapshot import snapshot_cmd
 
@@ -49,9 +58,14 @@ root.add_command(attach_cmd)
 root.add_command(detach_cmd)
 root.add_command(sessions_group)
 root.add_command(snapshot_cmd)
+root.add_command(screenshot_cmd)
 root.add_command(click_cmd)
+root.add_command(dblclick_cmd)
+root.add_command(fill_cmd)
 root.add_command(type_cmd)
-root.add_command(wait_for_cmd)
+root.add_command(press_cmd)
+root.add_command(action_cmd)
+root.add_command(eval_cmd)
 
 
 def main() -> None:

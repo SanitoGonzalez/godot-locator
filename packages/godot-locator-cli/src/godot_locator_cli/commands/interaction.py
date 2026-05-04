@@ -1,5 +1,6 @@
-"""Interaction commands: `click`, `type`, `wait_for`. Default text output
-embeds the post-interaction snapshot so agents skip a follow-up `snapshot`."""
+"""Interaction commands: `click`, `dblclick`, `fill`, `type`. Default text
+output embeds the post-interaction snapshot so agents skip a follow-up
+`snapshot`."""
 
 from __future__ import annotations
 
@@ -9,14 +10,17 @@ from .. import output
 from ..runner import coro_command, with_session
 
 
-def _ref_locator(ref: str) -> dict:
-    return {"ref": ref}
+_BUTTON_ARG = click.argument(
+    "button",
+    type=click.Choice(["left", "right", "middle"]),
+    default="left",
+    required=False,
+)
 
 
 @click.command("click")
 @click.argument("ref")
-@click.option("--button", type=click.Choice(["left", "right", "middle"]), default="left", show_default=True)
-@click.option("--double", is_flag=True, help="Double-click instead of single.")
+@_BUTTON_ARG
 @click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
 @click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
 @click.pass_context
@@ -25,20 +29,61 @@ async def click_cmd(
     ctx: click.Context,
     ref: str,
     button: str,
-    double: bool,
     no_snapshot: bool,
     as_json: bool,
 ) -> None:
-    """Click a node by ref."""
+    """Click a node by ref. BUTTON defaults to 'left'."""
     name_flag = ctx.obj.get("session") if ctx.obj else None
-    if double:
-        method = "double_click"
-    elif button == "right":
-        method = "right_click"
-    else:
-        method = "click"
     async with with_session(name_flag) as (session, client):
-        result = await client.call(method, locator=_ref_locator(ref))
+        result = await client.call("click", ref=ref, button=button)
+    if as_json:
+        output.emit_json(result)
+        return
+    output.emit(output.render_interaction(session, result, show_snapshot=not no_snapshot))
+
+
+@click.command("dblclick")
+@click.argument("ref")
+@_BUTTON_ARG
+@click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
+@click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
+@click.pass_context
+@coro_command
+async def dblclick_cmd(
+    ctx: click.Context,
+    ref: str,
+    button: str,
+    no_snapshot: bool,
+    as_json: bool,
+) -> None:
+    """Double-click a node by ref. BUTTON defaults to 'left'."""
+    name_flag = ctx.obj.get("session") if ctx.obj else None
+    async with with_session(name_flag) as (session, client):
+        result = await client.call("double_click", ref=ref, button=button)
+    if as_json:
+        output.emit_json(result)
+        return
+    output.emit(output.render_interaction(session, result, show_snapshot=not no_snapshot))
+
+
+@click.command("fill")
+@click.argument("ref")
+@click.argument("text")
+@click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
+@click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
+@click.pass_context
+@coro_command
+async def fill_cmd(
+    ctx: click.Context,
+    ref: str,
+    text: str,
+    no_snapshot: bool,
+    as_json: bool,
+) -> None:
+    """Replace the text of a LineEdit/TextEdit by ref (atomic)."""
+    name_flag = ctx.obj.get("session") if ctx.obj else None
+    async with with_session(name_flag) as (session, client):
+        result = await client.call("fill", ref=ref, text=text)
     if as_json:
         output.emit_json(result)
         return
@@ -46,7 +91,6 @@ async def click_cmd(
 
 
 @click.command("type")
-@click.argument("ref")
 @click.argument("text")
 @click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
 @click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
@@ -54,66 +98,79 @@ async def click_cmd(
 @coro_command
 async def type_cmd(
     ctx: click.Context,
-    ref: str,
     text: str,
     no_snapshot: bool,
     as_json: bool,
 ) -> None:
-    """Replace the text of a LineEdit/TextEdit by ref."""
+    """Type text into the currently focused Control (per-character key events)."""
     name_flag = ctx.obj.get("session") if ctx.obj else None
     async with with_session(name_flag) as (session, client):
-        result = await client.call("fill", locator=_ref_locator(ref), text=text)
+        result = await client.call("type", text=text)
     if as_json:
         output.emit_json(result)
         return
     output.emit(output.render_interaction(session, result, show_snapshot=not no_snapshot))
 
 
-@click.command("wait-for")
-@click.argument("ref")
-@click.option("--text", default=None, help="Match exactly on text.")
-@click.option("--text-contains", default=None, help="Match on substring.")
-@click.option("--count", type=int, default=None, help="Match exact match count.")
-@click.option("--exists", is_flag=True, help="Match when at least one node matches.")
-@click.option("--missing", is_flag=True, help="Match when zero nodes match.")
-@click.option("--timeout-ms", type=int, default=2000, show_default=True)
-@click.option("--interval-ms", type=int, default=50, show_default=True)
+@click.command("press")
+@click.argument("key")
 @click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
 @click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
 @click.pass_context
 @coro_command
-async def wait_for_cmd(
+async def press_cmd(
     ctx: click.Context,
-    ref: str,
-    text: str | None,
-    text_contains: str | None,
-    count: int | None,
-    exists: bool,
-    missing: bool,
-    timeout_ms: int,
-    interval_ms: int,
+    key: str,
     no_snapshot: bool,
     as_json: bool,
 ) -> None:
-    """Poll the locator until a predicate holds, or time out."""
+    """Press a single key (e.g. `enter`, `escape`, `arrowleft`, `f1`, `a`).
+
+    Synthesizes a keyboard press+release. For typing text, prefer `fill` or
+    `type`. For game-logic-level inputs that should match what the player
+    does (and respect keyboard/gamepad mappings), use `action` instead.
+    """
     name_flag = ctx.obj.get("session") if ctx.obj else None
-    params: dict = {
-        "locator": _ref_locator(ref),
-        "timeout_ms": timeout_ms,
-        "interval_ms": interval_ms,
-    }
-    if text is not None:
-        params["text"] = text
-    if text_contains is not None:
-        params["text_contains"] = text_contains
-    if count is not None:
-        params["count"] = count
-    if exists:
-        params["exists"] = True
-    if missing:
-        params["missing"] = True
     async with with_session(name_flag) as (session, client):
-        result = await client.call("wait_for", **params)
+        result = await client.call("press", key=key)
+    if as_json:
+        output.emit_json(result)
+        return
+    output.emit(output.render_interaction(session, result, show_snapshot=not no_snapshot))
+
+
+_ACTION_MODE_ARG = click.argument(
+    "mode",
+    type=click.Choice(["tap", "hold", "release"]),
+    default="tap",
+    required=False,
+)
+
+
+@click.command("action")
+@click.argument("name")
+@_ACTION_MODE_ARG
+@click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
+@click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
+@click.pass_context
+@coro_command
+async def action_cmd(
+    ctx: click.Context,
+    name: str,
+    mode: str,
+    no_snapshot: bool,
+    as_json: bool,
+) -> None:
+    """Drive a Godot input action by name. MODE defaults to 'tap'.
+
+    `tap` presses then releases (most common — `is_action_just_pressed`
+    will fire). `hold` presses without releasing — use for sustained
+    inputs. `release` releases a previously-held action. NAME must be a
+    registered action in Project Settings → Input Map.
+    """
+    name_flag = ctx.obj.get("session") if ctx.obj else None
+    async with with_session(name_flag) as (session, client):
+        result = await client.call("action", name=name, mode=mode)
     if as_json:
         output.emit_json(result)
         return

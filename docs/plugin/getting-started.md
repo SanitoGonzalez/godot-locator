@@ -11,6 +11,23 @@ Enable the addon in *Project Settings → Plugins*. It registers a `Locator` aut
 | `GODOT_LOCATOR_PORT` | port the runtime service binds to | `8282` |
 | `GODOT_LOCATOR_HOST` | bind address — `127.0.0.1` / `::1` for loopback, `0.0.0.0` / `::` for all interfaces (v4 / v6) | `127.0.0.1` |
 | `GODOT_LOCATOR_SERVER_ENABLED` | set to `false` to skip the WebSocket server. The autoload's [direct API](#direct-api) stays available to your code | `true` |
+| `GODOT_LOCATOR_EVAL_ENABLED` | set to `true` to allow the `evaluate` wire method to run GDScript expressions in the running game. See [Eval](#eval) below | `false` |
+
+### Eval
+
+The `evaluate` method runs a single GDScript expression inside the running game and returns its value. Useful for inspecting state that isn't in the snapshot (HP, inventory, internal flags, current scene, etc.):
+
+```bash
+godot-locator-cli eval "get_tree().current_scene.name"
+godot-locator-cli eval --ref=e5 "node.text"
+```
+
+Because expressions have full read access to the entire game (and can call methods that mutate state), the wire method is **off by default**. Opt in by setting `GODOT_LOCATOR_EVAL_ENABLED=true` on the game process. Keep it off in shipping builds.
+
+Two limitations to keep in mind:
+
+- **GDScript syntax only.** Even on C# projects, write `node.get_name()`, not `node.GetName()` — Godot's `Expression` evaluator uses GDScript naming for everything.
+- **Single expression.** No `var`/`func`/multi-line statements. To inspect more, chain calls (`get_tree().current_scene.find_child("Player").hp`) or expose a helper method on a node and call it.
 
 ### Snapshot
 
