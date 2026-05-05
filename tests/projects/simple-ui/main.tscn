@@ -2,8 +2,9 @@
 
 [ext_resource type="Script" uid="uid://bb30rfmbcbil1" path="res://main.gd" id="1_ig7tw"]
 [ext_resource type="Script" uid="uid://cnp7sxk2vqa3l" path="res://numberpad.gd" id="2_nbpad"]
+[ext_resource type="PackedScene" uid="uid://dy5wxnimsseom" path="res://minigame.tscn" id="3_mgscn"]
 
-[node name="Root" type="Control" unique_id=1933604357]
+[node name="Main" type="Control" unique_id=1933604357]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -34,10 +35,12 @@ layout_mode = 2
 [node name="Title" type="Label" parent="MarginContainer/VBoxContainer/Header" unique_id=645553965]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 28
 text = "User Profile"
 
 [node name="CloseButton" type="Button" parent="MarginContainer/VBoxContainer/Header" unique_id=1397025800]
 layout_mode = 2
+theme_override_font_sizes/font_size = 40
 text = "X"
 
 [node name="FormPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer" unique_id=204777438]
@@ -49,10 +52,12 @@ theme_override_constants/separation = 8
 
 [node name="NameInput" type="LineEdit" parent="MarginContainer/VBoxContainer/FormPanel/FormBox" unique_id=33509803]
 layout_mode = 2
+theme_override_font_sizes/font_size = 28
 placeholder_text = "Full name"
 
 [node name="EmailInput" type="LineEdit" parent="MarginContainer/VBoxContainer/FormPanel/FormBox" unique_id=880730510]
 layout_mode = 2
+theme_override_font_sizes/font_size = 28
 placeholder_text = "Email address"
 
 [node name="Actions" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1321052907]
@@ -61,14 +66,140 @@ alignment = 2
 
 [node name="CancelButton" type="Button" parent="MarginContainer/VBoxContainer/Actions" unique_id=1602772910]
 layout_mode = 2
+theme_override_font_sizes/font_size = 30
 text = "Cancel"
 
 [node name="SubmitButton" type="Button" parent="MarginContainer/VBoxContainer/Actions" unique_id=239818590]
 layout_mode = 2
+theme_override_font_sizes/font_size = 30
 disabled = true
 text = "Submit"
+metadata/godot_locator_description = "Submits the user profile form. Disabled until both name and email are filled."
 
-[node name="NumberPad" type="Control" parent="MarginContainer/VBoxContainer" unique_id=1810472553]
-custom_minimum_size = Vector2(180, 180)
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1096061481]
 layout_mode = 2
+size_flags_vertical = 3
+
+[node name="NumberPad" type="Control" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=1810472553]
+custom_minimum_size = Vector2(176, 176)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
 script = ExtResource("2_nbpad")
+metadata/godot_locator_description = "META-DEFAULT-NEVER-SHOWN"
+
+[node name="Cell1" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/NumberPad" unique_id=100000001]
+layout_mode = 0
+offset_right = 56.0
+offset_bottom = 56.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 28
+toggle_mode = true
+text = "1"
+metadata/godot_locator_ref = true
+
+[node name="Cell2" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/NumberPad" unique_id=100000002]
+layout_mode = 0
+offset_left = 60.0
+offset_right = 116.0
+offset_bottom = 56.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 28
+toggle_mode = true
+text = "2"
+metadata/godot_locator_ref = true
+
+[node name="Cell3" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/NumberPad" unique_id=100000003]
+layout_mode = 0
+offset_left = 120.0
+offset_right = 176.0
+offset_bottom = 56.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 28
+toggle_mode = true
+text = "3"
+metadata/godot_locator_ref = true
+
+[node name="Cell4" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/NumberPad" unique_id=100000004]
+layout_mode = 0
+offset_top = 60.0
+offset_right = 56.0
+offset_bottom = 116.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 28
+toggle_mode = true
+text = "4"
+metadata/godot_locator_ref = true
+
+[node name="Cell5" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/NumberPad" unique_id=100000005]
+layout_mode = 0
+offset_left = 60.0
+offset_top = 60.0
+offset_right = 116.0
+offset_bottom = 116.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 28
+toggle_mode = true
+text = "5"
+metadata/godot_locator_ref = true
+
+[node name="Cell6" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/NumberPad" unique_id=100000006]
+layout_mode = 0
+offset_left = 120.0
+offset_top = 60.0
+offset_right = 176.0
+offset_bottom = 116.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 28
+toggle_mode = true
+text = "6"
+metadata/godot_locator_ref = true
+
+[node name="Cell7" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/NumberPad" unique_id=100000007]
+layout_mode = 0
+offset_top = 120.0
+offset_right = 56.0
+offset_bottom = 176.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 28
+toggle_mode = true
+text = "7"
+metadata/godot_locator_ref = true
+
+[node name="Cell8" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/NumberPad" unique_id=100000008]
+layout_mode = 0
+offset_left = 60.0
+offset_top = 120.0
+offset_right = 116.0
+offset_bottom = 176.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 28
+toggle_mode = true
+text = "8"
+metadata/godot_locator_ref = true
+
+[node name="Cell9" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer/NumberPad" unique_id=100000009]
+layout_mode = 0
+offset_left = 120.0
+offset_top = 120.0
+offset_right = 176.0
+offset_bottom = 176.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 28
+toggle_mode = true
+text = "9"
+metadata/godot_locator_ref = true
+
+[node name="MiniGameContainer" type="SubViewportContainer" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=130149408]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 3.0
+stretch = true
+metadata/godot_locator_description = "Side-scrolling mini-game. Hold W to move the plane up, S to move down."
+
+[node name="SubViewport" type="SubViewport" parent="MarginContainer/VBoxContainer/HBoxContainer/MiniGameContainer" unique_id=2093359839]
+handle_input_locally = false
+size = Vector2i(454, 309)
+render_target_update_mode = 4
+
+[node name="MiniGame" parent="MarginContainer/VBoxContainer/HBoxContainer/MiniGameContainer/SubViewport" unique_id=480775272 instance=ExtResource("3_mgscn")]

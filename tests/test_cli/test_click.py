@@ -8,6 +8,7 @@ from .conftest import CLIRunner, find_node
 
 
 @pytest.mark.godot_project("simple-ui")
+@pytest.mark.godot_display
 async def test_click_cancel_clears_form(cli: CLIRunner) -> None:
     snap = cli("snapshot", "--json").json()["snapshot"]
     name_ref = find_node(snap, name="NameInput")["ref"]
@@ -56,12 +57,12 @@ async def test_click_submit_records_attrs(cli: CLIRunner) -> None:
     after = cli("click", submit_ref, "--json").json()["snapshot"]
 
     # main.gd's `_on_submit` clears both inputs and stores the values on
-    # `Root`, which surfaces them via `_godot_locator_format().attrs`.
+    # `Main`, which surfaces them via `_godot_locator_format().attrs`.
     assert find_node(after, name="NameInput").get("text", "") == ""
     assert find_node(after, name="EmailInput").get("text", "") == ""
-    root_attrs = find_node(after, name="Root").get("attrs", {})
-    assert root_attrs.get("submitted_name") == "Alice"
-    assert root_attrs.get("submitted_email") == "alice@example.com"
+    main_attrs = find_node(after, name="Main").get("attrs", {})
+    assert main_attrs.get("submitted_name") == "Alice"
+    assert main_attrs.get("submitted_email") == "alice@example.com"
 
 
 @pytest.mark.godot_project("simple-ui")

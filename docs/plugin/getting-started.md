@@ -116,6 +116,17 @@ my_debug_btn.set_meta("godot_locator_ref", false)
 
 The meta wins over every other rule (built-in classes, custom-format hook, `_gui_input` detection).
 
+#### Describing stock Controls
+
+To attach an agent-targeted description to a Control without writing a script, use the `godot_locator_description` meta — set it in the inspector (`metadata/godot_locator_description = "..."`) or in code:
+
+```gdscript
+$SubmitButton.set_meta("godot_locator_description",
+    "Submits the user profile form. Disabled until both name and email are filled.")
+```
+
+Renders the same way as a hook-supplied `description` — a trailing `# …` comment on the node's snapshot line. The hook's `description` (when a node has both) takes precedence.
+
 #### Custom node formatting
 
 To extend the snapshot for your own node classes, implement `_godot_locator_format() -> Dictionary` (or `_GodotLocatorFormat()` from C#). Any node with this method auto-gets a ref.
@@ -126,6 +137,7 @@ class_name HealthBar extends Control
 func _godot_locator_format() -> Dictionary:
     return {
         "text": "%d/%d" % [current, maximum],
+        "description": "Player HP. Decreases on hit, regenerates over time. Becomes critical below 20%.",
         "attrs": {"pct": int(100.0 * current / maximum)},
         "flags": ["critical"] if current < maximum * 0.2 else [],
     }
@@ -140,6 +152,7 @@ public partial class HealthBar : Control
     public Dictionary _GodotLocatorFormat() => new()
     {
         ["text"] = $"{Current}/{Maximum}",
+        ["description"] = "Player HP. Decreases on hit, regenerates over time. Becomes critical below 20%.",
         ["attrs"] = new Dictionary { ["pct"] = (int)(100.0 * Current / Maximum) },
         ["flags"] = Current < Maximum * 0.2 ? new Array { "critical" } : new Array(),
     };
@@ -149,15 +162,16 @@ public partial class HealthBar : Control
 Renders as:
 
 ```yaml
-- HealthBar #Player "30/100" [ref=e7, pct=30, critical]
+- HealthBar #Player "30/100" [ref=e7, pct=30, critical]  # Player HP. Decreases on hit, regenerates over time. Becomes critical below 20%.
 ```
 
 | Field | Effect |
 | ----- | ------ |
 | `text` | overrides the built-in positional `"…"` (Label/Button/RichTextLabel/LineEdit default) |
+| `description` | free-form guidance for coding agents — what the node is for, how to drive it, non-obvious invariants. Renders as a trailing `# …` comment next to the node. Newlines collapse to spaces. Stock Controls without a hook can carry one via the `godot_locator_description` meta (see below) |
 | `attrs` | merged into the trailing bracket. `int`/`float`/`bool` values render unquoted; everything else is stringified and quoted. `null` values are dropped |
 | `flags` | bare tokens appended after `attrs` in the bracket (e.g. `BaseButton.disabled`) |
 
-All three keys are optional — return any subset.
+All four keys are optional — return any subset.
 
 **Class names** in the snapshot are resolved in this order: GDScript `class_name` (via `Script.get_global_name()`) → the project's global class registry (path lookup) → for `.cs` scripts, the filename basename → engine class (`get_class()`). The `.cs` step is a fallback because Godot 4.6's C# binding doesn't expose user class names to GDScript through either of the first two paths. Keep the standard C# convention of one `public partial class FooBar` per `FooBar.cs` and your custom node will appear as `FooBar` in the snapshot; otherwise it falls through to the engine base type (e.g. `Button`).

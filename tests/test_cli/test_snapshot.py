@@ -34,6 +34,31 @@ async def test_snapshot_picks_up_custom_format(cli: CLIRunner) -> None:
 
 
 @pytest.mark.godot_project("simple-ui")
+async def test_snapshot_custom_description(cli: CLIRunner) -> None:
+    snap = cli("snapshot", "--json").json()["snapshot"]
+    pad = find_node(snap, name="NumberPad")
+    # NumberPad has `godot_locator_description` meta set in main.tscn, but its
+    # `_godot_locator_format` hook returns its own — the hook wins.
+    assert pad["description"].startswith("3x3 grid")
+    assert "META-DEFAULT" not in pad["description"]
+
+    out = cli("snapshot").stdout
+    # Description renders as a trailing `# …` comment on the node's line.
+    pad_line = next(line for line in out.splitlines() if "NumberPad" in line)
+    assert "# 3x3 grid" in pad_line
+
+
+@pytest.mark.godot_project("simple-ui")
+async def test_snapshot_meta_description_default(cli: CLIRunner) -> None:
+    # SubmitButton has no _godot_locator_format hook, but its
+    # `godot_locator_description` meta (set in main.tscn) surfaces as the
+    # snapshot's `description` — opt-in for stock Controls without a script.
+    snap = cli("snapshot", "--json").json()["snapshot"]
+    submit = find_node(snap, name="SubmitButton")
+    assert submit["description"].startswith("Submits the user profile form.")
+
+
+@pytest.mark.godot_project("simple-ui")
 async def test_snapshot_text_output(cli: CLIRunner) -> None:
     out = cli("snapshot").stdout
     assert "### Snapshot" in out

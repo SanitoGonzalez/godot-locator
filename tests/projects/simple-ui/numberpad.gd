@@ -11,39 +11,6 @@ var _drag_paints_on := true
 var _drag_origin_pos := Vector2.ZERO
 var _selection_at_drag_start: Dictionary = {}
 
-func _ready() -> void:
-	custom_minimum_size = Vector2(COLS * CELL.x + (COLS - 1) * GAP, ROWS * CELL.y + (ROWS - 1) * GAP)
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	# Per-cell anchor Controls so tests can target individual cells. They're
-	# plain Controls — the `godot_locator_ref` meta is what tags them as
-	# referenceable. Input passes through to the parent's `_gui_input`.
-	var step := CELL + Vector2(GAP, GAP)
-	for r in ROWS:
-		for c in COLS:
-			var n := r * COLS + c + 1
-			var anchor := Control.new()
-			anchor.name = "Cell%d" % n
-			anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			anchor.position = Vector2(c, r) * step
-			anchor.size = CELL
-			anchor.set_meta("godot_locator_ref", true)
-			add_child(anchor)
-
-func _draw() -> void:
-	var font := ThemeDB.fallback_font
-	var font_size := 22
-	for r in ROWS:
-		for c in COLS:
-			var n := r * COLS + c + 1
-			var rect := Rect2(Vector2(c, r) * (CELL + Vector2(GAP, GAP)), CELL)
-			var on: bool = _selected.get(n, false)
-			draw_rect(rect, Color(0.27, 0.55, 0.92) if on else Color(0.22, 0.22, 0.25))
-			draw_rect(rect, Color(0.5, 0.5, 0.55), false, 1.5)
-			var label := str(n)
-			var s := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
-			var pos := rect.position + Vector2((rect.size.x - s.x) * 0.5, (rect.size.y + font_size) * 0.5 - 2)
-			draw_string(font, pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
-
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
@@ -78,7 +45,7 @@ func _apply_drag_rect(current_pos: Vector2) -> void:
 				new_sel.erase(n)
 	if new_sel.hash() != _selected.hash():
 		_selected = new_sel
-		queue_redraw()
+		_sync_buttons()
 
 func _cell_at(pos: Vector2) -> int:
 	var c := int(pos.x / (CELL.x + GAP))
@@ -90,14 +57,20 @@ func _cell_at(pos: Vector2) -> int:
 		return -1
 	return r * COLS + c + 1
 
+func _sync_buttons() -> void:
+	for i in range(1, 10):
+		var btn := get_node("Cell%d" % i) as Button
+		btn.button_pressed = _selected.get(i, false)
+
 func _godot_locator_format() -> Dictionary:
+	var help := "3x3 grid of toggle cells. Drag from one cell to another to select the bounding rectangle; dragging from a selected cell deselects instead. Use the `drag` command between two Cell refs."
 	var nums: Array = _selected.keys()
-	
+
 	if nums.is_empty():
-		return {"text": "drag and drop to select number buttons"}
-	
+		return {"text": "drag and drop to select number buttons", "description": help}
+
 	nums.sort()
 	var parts: PackedStringArray = []
 	for n in nums:
 		parts.append(str(n))
-	return {"text": "selected: " + ", ".join(parts)}
+	return {"text": "selected: " + ", ".join(parts), "description": help}

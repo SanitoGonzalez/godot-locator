@@ -44,13 +44,15 @@ def _render_tree(tree: list[dict[str, Any]]) -> str:
 def _render_entry(entry: dict[str, Any], depth: int, lines: list[str]) -> None:
     indent = "  " * depth
     label = _render_label(entry)
+    description = entry.get("description")
+    suffix = f"  # {_oneline(str(description))}" if description else ""
     children = entry.get("children") or []
     if children:
-        lines.append(f"{indent}{label}:")
+        lines.append(f"{indent}{label}:{suffix}")
         for child in children:
             _render_entry(child, depth + 1, lines)
     else:
-        lines.append(f"{indent}{label}")
+        lines.append(f"{indent}{label}{suffix}")
 
 
 def _render_label(entry: dict[str, Any]) -> str:
@@ -88,3 +90,7 @@ def _attr_value(v: Any) -> str:
 
 def _escape(s: str) -> str:
     return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _oneline(s: str) -> str:
+    return " ".join(s.split())

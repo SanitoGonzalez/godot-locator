@@ -2,9 +2,12 @@
 
 <div align="center">
   <img src="website/static/img/godot-locator-logo-256.svg" alt="Godot Locator Banner">
-</div>
 
-A [Playwright](https://github.com/microsoft/playwright)-inspired locator API for runtime SceneTree of Godot games.
+**Let coding agents test your Godot game UI**
+
+A [Playwright](https://github.com/microsoft/playwright)-inspired locator API for the live UI tree of Godot games.
+
+</div>
 
 <div align="center">
 
@@ -18,63 +21,94 @@ A [Playwright](https://github.com/microsoft/playwright)-inspired locator API for
 
 </div>
 
+---
+
+<!-- TODO: Add demo GIF/video here (30s clip of an agent navigating and clicking through a running game) -->
+
+---
+[main.tscn](tests/projects/simple-ui/main.tscn)
 ## Why Godot Locator?
 
-While writing games became easier thanks to coding agents, verification is still the bottleneck of game development process. Existing approaches either skip gameplay entirely or are too slow and expensive to run in a tight feedback loop.
+Coding agents can write game code — but verifying it still requires a human to launch and play the game. Existing approaches don't fill that gap well.
 
-|Types|Coverage|Cons|
-|-----|--------|----|
-|human QA|full gameplay|slow, doesn't scale, inconsistent|
-|unit tests|pure logic|no scene/gameplay coverage|
-|scripted tests|limited gameplay|changes break the test scenario|
-|automated tests (screenshots + [VLM](https://en.wikipedia.org/wiki/Vision-language_model))|gameplay|slower and costs more than LLMs|
-|automated tests (texts + [LLM](https://en.wikipedia.org/wiki/Large_language_model))|gameplay|no visual verification (See [hybrid workflow](#workflow-hybrid-testing-with-screenshots) as compensation)|
+| Approach | Coverage | Problem |
+|----------|----------|---------|
+| Human tests | Full gameplay | Slow, doesn't scale, inconsistent |
+| Unit tests | Pure logic | No scene or gameplay coverage |
+| Scripted tests | Limited gameplay | Breaks when the scene changes |
+| Screenshots + [VLM](https://en.wikipedia.org/wiki/Vision-language_model) | Gameplay | Slower and more expensive |
+| **Text snapshot + [LLM](https://en.wikipedia.org/wiki/Large_language_model)** | **Gameplay** | **No visual verification (use [screenshots](#workflow-automated-testing-with-final-screenshots) to compensate)** |
 
-Godot Locator powers the last approach — a Playwright-style API over the live SceneTree that coding agents can drive directly.
+Godot Locator powers the last approach — a Playwright-style API over the live UI tree that coding agents can drive directly.
 
-## Features
+### Key Features
+
+- **Token-efficient**: The SceneTree is read as structured text, not pixels. No images, no pixel processing — just the data that matters.
+- **Deterministic**: Interactions target nodes by name, type, or property — not screen coordinates that shift with every resolution or frame.
+- **Extensible**: Attach live game state (HP, score, current scene…) to every snapshot. Custom nodes can expose their own text and attributes.
 
 ## Quick Start
 
-Copy the following prompt and paste to your coding agent:
+Copy the following prompt and paste it to your coding agent:
+
 ```
 Setup `Godot Locator CLI` referencing `https://github.com/SanitoGonzalez/godot-locator/tree/main/docs/how-to-setup-cli-for-agents.md`.
 ```
 
 Then let them explore and interact with your Godot game:
+
 ```
 Launch <path-to-godot-project> and click any button you see.
 ```
 
-See [documentation](https://sanitogonzalez.github.io/godot-locator/) for the manual setup.
+See the [documentation](https://sanitogonzalez.github.io/godot-locator/) for manual setup.
 
-## Workflow: automated testing
+## How It Works
 
-## Workflow: automated testing with final screenshots 
+A small Godot plugin exposes the live SceneTree over WebSocket. Coding agents connect through the CLI or MCP server to query, interact, and take screenshots — without any changes to your game code.
 
-## Workflow: infinite gameplay loop
+```mermaid
+graph LR
+    A[Coding Agent] -->|commands| B[CLI]
+    A -->|tools| C[MCP Server]
+    B -->|WebSocket| D[Godot Game]
+    C -->|WebSocket| D
+```
+
+| Component | Role |
+|-----------|------|
+| **Godot Plugin** | Runs inside the game, serves the SceneTree over WebSocket |
+| **CLI** | Command-line interface for agents that call shell tools |
+| **MCP Server** | [Model Context Protocol](https://modelcontextprotocol.io) server for agents with native MCP support |
+
+## Workflows
+
+### Automated testing
+
+Drive the game with an agent, assert on node state, and get a pass/fail result — no human in the loop.
+
+```
+
+```
+
+### Automated testing with final screenshots
+
+Run the full session via text snapshots for speed, then take a screenshot at key moments for visual verification.
+
+```
+```
+
+### Infinite gameplay loop
+
+Let an agent play indefinitely to surface edge cases, crashes, or unexpected states.
+
+```
+```
 
 ---
 
-## Godot Locator Plugin
+## [Documentation](https://sanitogonzalez.github.io/godot-locator/)
 
-### Setup
-
-### Key capabilities
-
-
-## Godot Locator CLI
-
-[Godot Locator CLI](https://sanitogonzalez.github.io/godot-locator/cli/) is a command-line interface for godot runtime automation designed for coding agents.
-
-### Install
-
-### Usage
-
-## Godot Locator MCP
-
-[Godot Locator MCP server](https://sanitogonzalez.github.io/godot-locator/mcp/) gives AI godot runtime control through the [Model Context Protocol](https://modelcontextprotocol.io).
-
-### Setup
-
-### Usage
+- [Godot Plugin setup](https://sanitogonzalez.github.io/godot-locator/plugin/)
+- [CLI reference](https://sanitogonzalez.github.io/godot-locator/cli/)
+- [MCP Server setup](https://sanitogonzalez.github.io/godot-locator/mcp/)

@@ -6,7 +6,12 @@ extends Node
 ## `server.gd` is a thin child node that delegates wire methods here.
 
 ## Custom-format hook. A node implementing `_godot_locator_format() -> Dictionary`
-## can contribute extra `{text, attrs, flags}` to its snapshot entry.
+## can contribute extra `{text, description, attrs, flags}` to its snapshot entry.
+## `description` is free-form guidance for coding agents — what the node is
+## for, how to drive it, non-obvious invariants — and renders as a trailing
+## `# …` comment next to the node in the snapshot. Stock Controls can carry
+## one without a script via the `godot_locator_description` meta (see
+## `DESCRIPTION_META` below); the hook's `description` overrides it.
 ## C# users can use the PascalCase `_GodotLocatorFormat()` instead — Godot's
 ## .NET binding registers public methods under their C# name verbatim.
 const FORMAT_METHOD := "_godot_locator_format"
@@ -16,6 +21,13 @@ const FORMAT_METHOD_CS := "_GodotLocatorFormat"
 ## `node.set_meta("godot_locator_ref", true)` to force a ref on a Control the
 ## heuristic would otherwise skip, or `false` to hide one it would emit.
 const REF_META := "godot_locator_ref"
+
+## Meta key used to attach an agent-targeted description to a stock Control
+## without writing a `_godot_locator_format` hook. Set
+## `node.set_meta("godot_locator_description", "...")` in code or via
+## "metadata/godot_locator_description = ..." in the inspector. The hook's
+## `description` (when present) takes precedence over this meta.
+const DESCRIPTION_META := "godot_locator_description"
 
 ## Env flag that opts a game process into the `evaluate` wire method.
 ## Eval has full GDScript-expression access to the running game; gating it
@@ -731,6 +743,14 @@ func _snapshot_format(control: Control) -> Dictionary:
 		text = control.text
 	if text != "":
 		entry["text"] = text
+
+	var description := ""
+	if custom.has("description"):
+		description = str(custom["description"])
+	elif control.has_meta(DESCRIPTION_META):
+		description = str(control.get_meta(DESCRIPTION_META))
+	if description != "":
+		entry["description"] = description
 
 	if _needs_ref(control, has_custom):
 		entry["ref"] = _snapshot_ref(control)
