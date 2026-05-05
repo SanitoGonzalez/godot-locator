@@ -154,6 +154,18 @@ async def click(
 
 
 @mcp.tool(tags={"core"})
+async def hover(
+    ref: NodeReference,
+) -> InteractionResult:
+    """Hover the mouse over a UI node in the SceneTree.
+
+    Synthesizes mouse motion at the node's center — triggers hover styling,
+    tooltips, and `mouse_entered` signals on Controls. No button press.
+    """
+    return _apply_snapshot_mode(await _call("hover", ref=ref))
+
+
+@mcp.tool(tags={"core"})
 async def fill(
     ref: NodeReference,
     text: Annotated[str, Field(description="Replacement text. The field is cleared, then set; `text_changed` is emitted.")],
@@ -163,6 +175,27 @@ async def fill(
     Returns the bundled post-interaction state — see `click` for the response shape.
     """
     return _apply_snapshot_mode(await _call("fill", ref=ref, text=text))
+
+
+@mcp.tool(tags={"core"})
+async def check(ref: NodeReference) -> InteractionResult:
+    """Set a toggle-mode button to checked."""
+    return _apply_snapshot_mode(await _call("check", ref=ref))
+
+
+@mcp.tool(tags={"core"})
+async def uncheck(ref: NodeReference) -> InteractionResult:
+    """Set a toggle-mode button to unchecked."""
+    return _apply_snapshot_mode(await _call("uncheck", ref=ref))
+
+
+@mcp.tool(tags={"core"})
+async def select(
+    ref: NodeReference,
+    value: Annotated[str, Field(description="Item index (e.g. \"0\") or item text.")],
+) -> InteractionResult:
+    """Select an OptionButton item by index or label."""
+    return _apply_snapshot_mode(await _call("select", ref=ref, value=value))
 
 
 @mcp.tool(name="type", tags={"core"})
@@ -191,6 +224,27 @@ async def press(
 
 
 @mcp.tool(tags={"core"})
+async def keydown(
+    key: Annotated[str, Field(description="Key name: 'enter', 'escape', 'arrowleft', 'f1', or single chars like 'a' / '1'.")],
+) -> InteractionResult:
+    """Press a key down without releasing it.
+
+    Use when a key needs to be held across multiple frames (held movement
+    keys, character autorepeat). Pair with `keyup` to release. For tap-style
+    press+release in one call, use `press`.
+    """
+    return _apply_snapshot_mode(await _call("keydown", key=key))
+
+
+@mcp.tool(tags={"core"})
+async def keyup(
+    key: Annotated[str, Field(description="Key name: 'enter', 'escape', 'arrowleft', 'f1', or single chars like 'a' / '1'.")],
+) -> InteractionResult:
+    """Release a key previously held with `keydown`."""
+    return _apply_snapshot_mode(await _call("keyup", key=key))
+
+
+@mcp.tool(tags={"core"})
 async def action(
     name: Annotated[str, Field(description="Godot action name registered in Project Settings → Input Map.")],
     mode: Annotated[str, Field(description='"tap" (default; press+release), "hold" (press only), or "release".')] = "tap",
@@ -205,61 +259,80 @@ async def action(
     return _apply_snapshot_mode(await _call("action", name=name, mode=mode))
 
 
-@mcp.tool(tags={"mouse"})
-async def mouse_move_xy(
-    x: Annotated[int, Field(description="X coordinate")],
-    y: Annotated[int, Field(description="Y coordinate")],
-) -> None:
-    """Move the mouse to specific coordinates."""
-    ...
-
-
-@mcp.tool(tags={"mouse"})
-async def mouse_click_xy(
-    x: Annotated[int, Field(description="X coordinate")],
-    y: Annotated[int, Field(description="Y coordinate")],
-    button: Annotated[str, Field(description='"left" (default), "right", or "middle"')] = "left",
-    clickCount: Annotated[int, Field(ge=0, description="Number of clicks (2 for double-click)")] = 1,
-    delay: Annotated[int, Field(description="Delay between mousedown and mouseup (ms)")] = 0,
+@mcp.tool(tags={"core"})
+async def mousewheel(
+    dx: Annotated[int, Field(description="Horizontal ticks (positive = right).")] = 0,
+    dy: Annotated[int, Field(description="Vertical ticks (positive = down).")] = 0,
+    ref: Annotated[str | None, Field(description="Optional node ref; else viewport center.")] = None,
 ) -> InteractionResult:
-    """Click at specific coordinates without needing to move first."""
-    ...
+    """Scroll the mouse wheel by tick counts.
+
+    Each tick synthesizes a `MOUSE_BUTTON_WHEEL_*` press+release. The event
+    routes to whatever Control sits under the cursor position — `ref` pins
+    that to the node's center, otherwise the viewport center is used.
+    """
+    params: dict[str, Any] = {"dx": dx, "dy": dy}
+    if ref:
+        params["ref"] = ref
+    return _apply_snapshot_mode(await _call("mousewheel", **params))
 
 
-@mcp.tool(tags={"mouse"})
-async def mouse_drag_xy(
-    start_x: Annotated[int, Field(description="Start X coordinate")],
-    start_y: Annotated[int, Field(description="Start Y coordinate")],
-    end_x: Annotated[int, Field(description="End X coordinate")],
-    end_y: Annotated[int, Field(description="End Y coordinate")],
+@mcp.tool(tags={"core"})
+async def drag(
+    from_ref: Annotated[str, Field(description="Source node ref from snapshot.")],
+    to_ref: Annotated[str, Field(description="Destination node ref from snapshot.")],
+    button: Button = "left",
 ) -> InteractionResult:
-    """Drag the mouse from one position to another."""
-    ...
+    """Drag and drop from one UI node to another.
+
+    Synthesizes a button-down at the source, several motion events stepping
+    toward the destination (so Godot's drag-detect threshold trips and
+    `_get_drag_data` is invoked), then a button-up at the destination.
+    """
+    return _apply_snapshot_mode(await _call("drag", **{"from": from_ref, "to": to_ref, "button": button}))
 
 
-@mcp.tool(tags={"mouse"})
-async def mouse_down(
-    button: Annotated[str, Field(description='"left" (default), "right", or "middle"')] = "left",
-) -> None:
-    """Press the mouse button at the current position."""
-    ...
+@mcp.tool(tags={"core"})
+async def mousemove(
+    x: Annotated[float, Field(description="Viewport X coordinate.")],
+    y: Annotated[float, Field(description="Viewport Y coordinate.")],
+) -> InteractionResult:
+    """Move the cursor to viewport coordinates.
+
+    Synthesizes an `InputEventMouseMotion` and remembers the position for
+    later `mousedown`/`mouseup` calls.
+    """
+    return _apply_snapshot_mode(await _call("mousemove", x=x, y=y))
 
 
-@mcp.tool(tags={"mouse"})
-async def mouse_up(
-    button: Annotated[str, Field(description='"left" (default), "right", or "middle"')] = "left",
-) -> None:
-    """Releaes the mouse button at the current position."""
-    ...
+@mcp.tool(tags={"core"})
+async def resize(
+    width: Annotated[int, Field(description="Window width in pixels.")],
+    height: Annotated[int, Field(description="Window height in pixels.")],
+) -> InteractionResult:
+    """Resize the game window."""
+    return _apply_snapshot_mode(await _call("resize", width=width, height=height))
 
 
-@mcp.tool(tags={"mouse"})
-async def mouse_wheel(
-    delta_x: Annotated[int, Field(description="Horizontal scroll amount in pixels. Positive scrolls right.")] = 0,
-    delta_y: Annotated[int, Field(description="Vertical scroll amount in pixels. Positive scrolls down.")] = 0,
-) -> None:
-    """Scroll the mouse wheel."""
-    ...
+@mcp.tool(tags={"core"})
+async def mousedown(
+    button: Button = "left",
+) -> InteractionResult:
+    """Press a mouse button at the current cursor position.
+
+    Use `mousemove` first to position the cursor. Lets tests held-drag
+    (mousedown -> mousemove(s) -> mouseup) without triggering Godot's
+    auto drag detection.
+    """
+    return _apply_snapshot_mode(await _call("mousedown", button=button))
+
+
+@mcp.tool(tags={"core"})
+async def mouseup(
+    button: Button = "left",
+) -> InteractionResult:
+    """Release a mouse button at the current cursor position."""
+    return _apply_snapshot_mode(await _call("mouseup", button=button))
 
 
 def _csv_set(s: str) -> set[str]:

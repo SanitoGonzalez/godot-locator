@@ -11,6 +11,20 @@ each test must opt in:
 
     @pytest.mark.godot_project("simple-ui")
     async def test_something(locator_client): ...
+
+Extra env vars for the Godot subprocess can be supplied via `godot_env`:
+
+    @pytest.mark.godot_env(GODOT_LOCATOR_EVAL_ENABLED="true")
+    async def test_eval(locator_client): ...
+
+By default Godot runs `--headless`, which uses a 64x64 dummy viewport with
+no real renderer. Tests that need full layout geometry or pixel data (clicks
+on far-from-origin Controls, screenshots) must opt into a real display via
+`godot_display` — auto-skipped when neither `DISPLAY` nor `WAYLAND_DISPLAY`
+is set:
+
+    @pytest.mark.godot_display          # default 800x600
+    @pytest.mark.godot_display(width=640, height=480)
 """
 
 from __future__ import annotations
@@ -74,8 +88,28 @@ async def locator_client(request: pytest.FixtureRequest) -> AsyncIterator[Locato
         raise FileNotFoundError(f"unknown godot project: {project_dir}")
     port = _free_port()
     env = {**os.environ, "GODOT_LOCATOR_PORT": str(port)}
+    for env_marker in request.node.iter_markers("godot_env"):
+        env.update({k: str(v) for k, v in env_marker.kwargs.items()})
+
+    display_marker = request.node.get_closest_marker("godot_display")
+    if display_marker is None:
+        argv = ["godot", "--headless", "--path", str(project_dir)]
+    else:
+        if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+            pytest.skip("godot_display test requires DISPLAY or WAYLAND_DISPLAY")
+        width = display_marker.kwargs.get("width", 800)
+        height = display_marker.kwargs.get("height", 600)
+        # Push the window far off-screen so the test doesn't grab focus or
+        # flash visibly. Honored by X11; Wayland compositors typically ignore
+        # the hint but the brief window is still tolerable.
+        argv = [
+            "godot",
+            "--path", str(project_dir),
+            "--resolution", f"{width}x{height}",
+            "--position", "-32000,-32000",
+        ]
     proc = subprocess.Popen(
-        ["godot", "--headless", "--path", str(project_dir)],
+        argv,
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

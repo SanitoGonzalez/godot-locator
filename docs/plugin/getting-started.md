@@ -55,7 +55,14 @@ The plugin returns JSON of shape `{tree, context?}`:
 }
 ```
 
-Each node has `class` and `children`; `name`, `text`, `ref`, `attrs`, and `flags` are emitted only when non-empty. Refs (`eN`) are stable instance ids — once issued, they keep pointing at the same node for follow-up `locate`/control calls — and are off by default; pass `tag_ref: true` (Playwright-style) to have them emitted for interactive nodes (`LineEdit` / `TextEdit` / `BaseButton`) and any node implementing the custom-format hook below.
+Each node has `class` and `children`; `name`, `text`, `ref`, `attrs`, and `flags` are emitted only when non-empty. Refs (`eN`) are stable instance ids — once issued, they keep pointing at the same node for follow-up `locate`/control calls — and are off by default; pass `tag_ref: true` (Playwright-style) to have them emitted. A Control gets a ref when any of:
+
+1. it's a built-in interactive — `LineEdit` / `TextEdit` / `BaseButton`,
+2. it implements the [custom-format hook](#custom-node-formatting),
+3. its script overrides `_gui_input`, or has a `gui_input` signal listener — the canonical signal that the Control handles its own input,
+4. it sets `set_meta("godot_locator_ref", true)` — explicit opt-in (or `false` to opt out of any of the above).
+
+Layout containers (`VBoxContainer`, `MarginContainer`, `PanelContainer`, …) don't pick up refs unless you opt them in. Custom Controls that draw and handle their own input — picker grids, drag rects, sliders — are caught automatically by rule 3.
 
 The bundled CLI / MCP packages render this into a YAML-style text representation for agents:
 
@@ -93,6 +100,21 @@ world: Castle of Death
 ```
 
 Non-Dictionary returns and unset / invalid callables are silently dropped — no `context` key in the snapshot.
+
+#### Forcing or hiding refs
+
+The auto-detect heuristic is best-effort. Override it on a per-Control basis with the `godot_locator_ref` meta:
+
+```gdscript
+# Force a ref on a Control the heuristic would skip — e.g. an empty hit area
+# whose parent handles input.
+my_hit_area.set_meta("godot_locator_ref", true)
+
+# Hide a ref the heuristic would emit — e.g. a debug-only Button.
+my_debug_btn.set_meta("godot_locator_ref", false)
+```
+
+The meta wins over every other rule (built-in classes, custom-format hook, `_gui_input` detection).
 
 #### Custom node formatting
 

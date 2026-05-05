@@ -61,8 +61,9 @@ When a command runs, the session is resolved in this order:
 
 | Command | Description |
 | ------- | ----------- |
-| `launch <path>` | Start a new Godot game and attach to it |
-| `launch <path> --headed` | Launch with a visible window |
+| `launch <path>` | Start a new Godot game (windowed) and attach to it |
+| `launch <path> --headless` | Launch without a window |
+| `launch <path> --resolution 1280x720` | Launch at the given window size |
 | `terminate` | Send shutdown to the game and remove the session |
 | `attach --endpoint=<url>` | Connect to an already-running game |
 | `attach --endpoint=<url> -s <name>` | Connect and save as a named session |

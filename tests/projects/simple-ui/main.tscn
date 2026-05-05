@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bqnlbyi6sxddv"]
 
 [ext_resource type="Script" uid="uid://bb30rfmbcbil1" path="res://main.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://cnp7sxk2vqa3l" path="res://numberpad.gd" id="2_nbpad"]
 
 [node name="Root" type="Control" unique_id=1933604357]
 layout_mode = 3
@@ -66,3 +67,8 @@ text = "Cancel"
 layout_mode = 2
 disabled = true
 text = "Submit"
+
+[node name="NumberPad" type="Control" parent="MarginContainer/VBoxContainer" unique_id=1810472553]
+custom_minimum_size = Vector2(180, 180)
+layout_mode = 2
+script = ExtResource("2_nbpad")

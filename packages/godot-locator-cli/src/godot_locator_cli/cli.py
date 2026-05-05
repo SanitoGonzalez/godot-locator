@@ -19,11 +19,23 @@ from .commands.attach import attach_cmd, detach_cmd
 from .commands.evaluate import eval_cmd
 from .commands.interaction import (
     action_cmd,
+    check_cmd,
     click_cmd,
     dblclick_cmd,
+    drag_cmd,
     fill_cmd,
+    hover_cmd,
+    keydown_cmd,
+    keyup_cmd,
+    mousedown_cmd,
+    mousemove_cmd,
+    mouseup_cmd,
+    mousewheel_cmd,
     press_cmd,
+    resize_cmd,
+    select_cmd,
     type_cmd,
+    uncheck_cmd,
 )
 from .commands.launch import launch_cmd, terminate_cmd
 from .commands.screenshot import screenshot_cmd
@@ -60,11 +72,23 @@ root.add_command(sessions_group)
 root.add_command(snapshot_cmd)
 root.add_command(screenshot_cmd)
 root.add_command(click_cmd)
+root.add_command(hover_cmd)
 root.add_command(dblclick_cmd)
 root.add_command(fill_cmd)
+root.add_command(check_cmd)
+root.add_command(uncheck_cmd)
+root.add_command(select_cmd)
 root.add_command(type_cmd)
 root.add_command(press_cmd)
+root.add_command(keydown_cmd)
+root.add_command(keyup_cmd)
 root.add_command(action_cmd)
+root.add_command(mousemove_cmd)
+root.add_command(mousedown_cmd)
+root.add_command(mouseup_cmd)
+root.add_command(mousewheel_cmd)
+root.add_command(drag_cmd)
+root.add_command(resize_cmd)
 root.add_command(eval_cmd)
 
 

@@ -44,7 +44,8 @@ class GodotProcess:
 def launch(
     project_path: Path,
     *,
-    headed: bool = False,
+    headless: bool = False,
+    resolution: tuple[int, int] | None = None,
     port: int | None = None,
     host: str = "127.0.0.1",
     extra_args: list[str] | None = None,
@@ -60,8 +61,11 @@ def launch(
     bound_port = port if port is not None else find_free_port()
 
     args = [godot_bin(), "--path", str(project_path)]
-    if not headed:
+    if headless:
         args.append("--headless")
+    if resolution is not None:
+        width, height = resolution
+        args.extend(["--resolution", f"{width}x{height}"])
     if extra_args:
         args.extend(extra_args)
 

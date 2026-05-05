@@ -21,9 +21,29 @@ from godot_locator_core.errors import SessionNotFoundError
 from .. import output
 
 
+def _parse_resolution(ctx: click.Context, param: click.Parameter, value: str | None) -> tuple[int, int] | None:
+    if value is None:
+        return None
+    try:
+        w_str, h_str = value.lower().split("x", 1)
+        width, height = int(w_str), int(h_str)
+    except ValueError as e:
+        raise click.BadParameter("expected WIDTHxHEIGHT, e.g. 1280x720") from e
+    if width <= 0 or height <= 0:
+        raise click.BadParameter("width and height must be positive integers")
+    return width, height
+
+
 @click.command("launch")
 @click.argument("project_path", type=click.Path(exists=True, file_okay=False, path_type=Path))
-@click.option("--headed", is_flag=True, help="Launch with a visible window (default: headless).")
+@click.option("--headless", is_flag=True, help="Launch without a window (default: headed).")
+@click.option(
+    "--resolution",
+    callback=_parse_resolution,
+    metavar="WxH",
+    default=None,
+    help="Window resolution, e.g. 1280x720. Ignored under --headless.",
+)
 @click.option("--port", type=int, default=None, help="Bind the locator to this port (default: ephemeral).")
 @click.option("--host", default="127.0.0.1", show_default=True, help="Bind the locator to this host.")
 @click.option("--timeout", type=float, default=10.0, show_default=True, help="Seconds to wait for the WebSocket.")
@@ -31,7 +51,8 @@ from .. import output
 def launch_cmd(
     ctx: click.Context,
     project_path: Path,
-    headed: bool,
+    headless: bool,
+    resolution: tuple[int, int] | None,
     port: int | None,
     host: str,
     timeout: float,
@@ -51,7 +72,13 @@ def launch_cmd(
         store.delete(name)
 
     chosen_port = port if port is not None else find_free_port()
-    proc = core_launch(project_path.resolve(), headed=headed, port=chosen_port, host=host)
+    proc = core_launch(
+        project_path.resolve(),
+        headless=headless,
+        resolution=resolution,
+        port=chosen_port,
+        host=host,
+    )
     try:
         wait_for_endpoint(host, chosen_port, timeout_s=timeout)
     except TimeoutError as e:

@@ -12,6 +12,11 @@ extends Node
 const FORMAT_METHOD := "_godot_locator_format"
 const FORMAT_METHOD_CS := "_GodotLocatorFormat"
 
+## Meta key used to override ref-eligibility on a Control. Set
+## `node.set_meta("godot_locator_ref", true)` to force a ref on a Control the
+## heuristic would otherwise skip, or `false` to hide one it would emit.
+const REF_META := "godot_locator_ref"
+
 ## Env flag that opts a game process into the `evaluate` wire method.
 ## Eval has full GDScript-expression access to the running game; gating it
 ## prevents accidental enablement in shipping builds.
@@ -32,6 +37,10 @@ var _snapshot_ref_by_iid: Dictionary = {}
 var _snapshot_ref_counter: int = 0
 # Monotonic counter bumped on every interaction response. Lets users detect drift
 var _snapshot_version: int = 1
+
+# Last position pushed via `mouse_move`. Used by mouse_down/mouse_up so
+# they can synthesize at the same coordinates without re-specifying.
+var _cursor_pos: Vector2 = Vector2.ZERO
 
 var _server: Node
 
@@ -69,6 +78,57 @@ func click(node: Node, button: int = MOUSE_BUTTON_LEFT) -> void:
 	_push_mouse_click(node, button, false)
 
 
+## Synthesize a mouse-motion event at the node's center. Triggers
+## hover styling, tooltips, and mouse_entered signals on Controls.
+func hover(node: Node) -> void:
+	var pos := _node_center(node)
+	var event := InputEventMouseMotion.new()
+	event.position = pos
+	event.global_position = pos
+	var vp := node.get_viewport()
+	if vp == null:
+		vp = get_viewport()
+	vp.push_input(event, true)
+
+
+## Synthesize a mouse-motion event at viewport coordinates `(x, y)` and
+## remember the position for later mousedown/mouseup.
+func mousemove(x: float, y: float) -> void:
+	var pos := Vector2(x, y)
+	var event := InputEventMouseMotion.new()
+	event.position = pos
+	event.global_position = pos
+	event.relative = pos - _cursor_pos
+	_cursor_pos = pos
+	var vp := get_viewport()
+	if vp != null:
+		vp.push_input(event, true)
+
+
+## Synthesize a mouse-button press at the current cursor position.
+## Use mousemove first to position the cursor.
+func mousedown(button: int = MOUSE_BUTTON_LEFT) -> void:
+	_push_mouse_button_at_cursor(button, true)
+
+
+## Synthesize a mouse-button release at the current cursor position.
+func mouseup(button: int = MOUSE_BUTTON_LEFT) -> void:
+	_push_mouse_button_at_cursor(button, false)
+
+
+func _push_mouse_button_at_cursor(button: int, pressed: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = button
+	event.pressed = pressed
+	event.position = _cursor_pos
+	event.global_position = _cursor_pos
+	if pressed:
+		event.button_mask = 1 << (button - 1)
+	var vp := get_viewport()
+	if vp != null:
+		vp.push_input(event, true)
+
+
 ## Synthesize a double-click at the node's center. Control or Node2D.
 ## `button` is a Godot `MOUSE_BUTTON_*` constant.
 func double_click(node: Node, button: int = MOUSE_BUTTON_LEFT) -> void:
@@ -94,6 +154,54 @@ func fill(node: Node, text: String) -> bool:
 		te.text_changed.emit()
 		return true
 	return false
+
+
+## Set a toggle-mode BaseButton to checked. Returns false if `node` is not
+## a BaseButton or toggle_mode is off.
+func check(node: Node) -> bool:
+	return _set_button_pressed(node, true)
+
+
+## Set a toggle-mode BaseButton to unchecked. Returns false if `node` is not
+## a BaseButton or toggle_mode is off.
+func uncheck(node: Node) -> bool:
+	return _set_button_pressed(node, false)
+
+
+func _set_button_pressed(node: Node, state: bool) -> bool:
+	if not (node is BaseButton):
+		return false
+	var btn: BaseButton = node
+	if not btn.toggle_mode:
+		return false
+	btn.button_pressed = state
+	return true
+
+
+## Select an item in an OptionButton by index or label. Returns false
+## if `node` is not an OptionButton or no item matches `value`.
+func select(node: Node, value: String) -> bool:
+	if not (node is OptionButton):
+		return false
+	var ob: OptionButton = node
+	var idx := -1
+	# Numeric? treat as index. Otherwise match item text case-insensitively.
+	if value.is_valid_int():
+		var n := int(value)
+		if n >= 0 and n < ob.item_count:
+			idx = n
+	else:
+		var target := value.to_lower()
+		for i in ob.item_count:
+			if ob.get_item_text(i).to_lower() == target:
+				idx = i
+				break
+	if idx < 0:
+		return false
+	ob.selected = idx
+	# Setter doesn't fire the signal; emit manually so listeners see it.
+	ob.item_selected.emit(idx)
+	return true
 
 
 ## Synthesize keyboard input into the currently-focused Control. Pushes one
@@ -136,6 +244,97 @@ func press(key_name: String) -> bool:
 	return true
 
 
+## Synthesize a key-down event without releasing. Use keyup or press to
+## release. `key_name` accepts anything `press` accepts.
+func keydown(key_name: String) -> bool:
+	return _push_key(key_name, true)
+
+
+## Synthesize a key-up event for a previously held key.
+func keyup(key_name: String) -> bool:
+	return _push_key(key_name, false)
+
+
+func _push_key(key_name: String, pressed: bool) -> bool:
+	var keycode := _parse_key(key_name)
+	if keycode == 0:
+		return false
+	var vp := get_viewport()
+	if vp == null:
+		return false
+	var event := InputEventKey.new()
+	event.keycode = keycode
+	event.physical_keycode = keycode
+	event.pressed = pressed
+	vp.push_input(event)
+	return true
+
+
+## Synthesize mouse-wheel events. `dx`/`dy` are tick counts (positive dy =
+## scroll down, positive dx = scroll right). `node` provides the cursor
+## position; when null, the viewport center is used so the event routes
+## to whatever Control sits there.
+func mousewheel(dx: int, dy: int, node: Node = null) -> void:
+	var vp := get_viewport() if node == null else node.get_viewport()
+	if vp == null:
+		return
+	var pos: Vector2
+	if node != null:
+		pos = _node_center(node)
+	else:
+		pos = vp.get_visible_rect().size * 0.5
+	if dy != 0:
+		var btn := MOUSE_BUTTON_WHEEL_DOWN if dy > 0 else MOUSE_BUTTON_WHEEL_UP
+		for _i in absi(dy):
+			_push_wheel_tick(vp, btn, pos)
+	if dx != 0:
+		var btn2 := MOUSE_BUTTON_WHEEL_RIGHT if dx > 0 else MOUSE_BUTTON_WHEEL_LEFT
+		for _i in absi(dx):
+			_push_wheel_tick(vp, btn2, pos)
+
+
+## Synthesize a drag-and-drop gesture from one node's center to another.
+## Pushes button-down at `from`, several motion events stepping toward
+## `to` (so Godot's drag-detect threshold trips and `_get_drag_data` is
+## invoked), then button-up at `to`. `steps` controls how many motion
+## events are emitted along the path (minimum 4 to be safe).
+func drag(from_node: Node, to_node: Node, button: int = MOUSE_BUTTON_LEFT, steps: int = 8) -> void:
+	var from_pos := _node_center(from_node)
+	var to_pos := _node_center(to_node)
+	var vp := from_node.get_viewport()
+	if vp == null:
+		vp = get_viewport()
+	var mask := 1 << (button - 1)
+
+	var press := InputEventMouseButton.new()
+	press.button_index = button
+	press.pressed = true
+	press.position = from_pos
+	press.global_position = from_pos
+	press.button_mask = mask
+	vp.push_input(press, true)
+
+	var prev := from_pos
+	var n := maxi(steps, 4)
+	for i in range(1, n + 1):
+		var t := float(i) / float(n)
+		var cur := from_pos.lerp(to_pos, t)
+		var motion := InputEventMouseMotion.new()
+		motion.position = cur
+		motion.global_position = cur
+		motion.relative = cur - prev
+		motion.button_mask = mask
+		vp.push_input(motion, true)
+		prev = cur
+
+	var release := InputEventMouseButton.new()
+	release.button_index = button
+	release.pressed = false
+	release.position = to_pos
+	release.global_position = to_pos
+	vp.push_input(release, true)
+
+
 ## Drive a Godot input action by name. `mode` is "tap" (default; press +
 ## release on the same call), "hold" (press only — leaves the action held),
 ## or "release". Returns false if the action isn't in `InputMap`.
@@ -152,6 +351,16 @@ func action(name: String, mode: String = "tap") -> bool:
 			Input.action_release(name)
 		_:
 			return false
+	return true
+
+
+## Resize the game's OS window. Width/height in pixels. The layout
+## reflows on the next frame; the bundled snapshot in the response
+## reflects the post-resize state.
+func resize(width: int, height: int) -> bool:
+	if width <= 0 or height <= 0:
+		return false
+	DisplayServer.window_set_size(Vector2i(width, height))
 	return true
 
 
@@ -226,12 +435,24 @@ func dispatch(method: String, params: Dictionary) -> Variant:
 	match method:
 		"snapshot":     return _handle_snapshot(params)
 		"click":        return _handle_click(params)
+		"hover":        return _handle_hover(params)
 		"double_click": return _handle_double_click(params)
 		"fill":         return _handle_fill(params)
+		"check":        return _handle_check(params)
+		"uncheck":      return _handle_uncheck(params)
+		"select":       return _handle_select(params)
 		"type":         return _handle_type(params)
 		"press":        return _handle_press(params)
+		"keydown":      return _handle_keydown(params)
+		"keyup":        return _handle_keyup(params)
 		"action":       return _handle_action(params)
+		"mousewheel":   return _handle_mousewheel(params)
+		"mousemove":    return _handle_mousemove(params)
+		"mousedown":    return _handle_mousedown(params)
+		"mouseup":      return _handle_mouseup(params)
+		"drag":         return _handle_drag(params)
 		"screenshot":   return _handle_screenshot(params)
+		"resize":       return _handle_resize(params)
 		"evaluate":     return _handle_evaluate(params)
 		_: return {"__error": "unknown method: %s" % method}
 
@@ -251,6 +472,14 @@ func _handle_click(params: Dictionary) -> Variant:
 	if button is Dictionary:
 		return button
 	click(resolved, button)
+	return _interaction_response(params)
+
+
+func _handle_hover(params: Dictionary) -> Variant:
+	var resolved: Variant = _resolve_ref(params)
+	if resolved is Dictionary:
+		return resolved
+	hover(resolved)
 	return _interaction_response(params)
 
 
@@ -284,6 +513,36 @@ func _handle_fill(params: Dictionary) -> Variant:
 	return _interaction_response(params)
 
 
+func _handle_check(params: Dictionary) -> Variant:
+	var resolved: Variant = _resolve_ref(params)
+	if resolved is Dictionary:
+		return resolved
+	if not check(resolved):
+		return {"__error": "check: node is not a toggle-mode BaseButton (got %s)" % resolved.get_class()}
+	return _interaction_response(params)
+
+
+func _handle_uncheck(params: Dictionary) -> Variant:
+	var resolved: Variant = _resolve_ref(params)
+	if resolved is Dictionary:
+		return resolved
+	if not uncheck(resolved):
+		return {"__error": "uncheck: node is not a toggle-mode BaseButton (got %s)" % resolved.get_class()}
+	return _interaction_response(params)
+
+
+func _handle_select(params: Dictionary) -> Variant:
+	var resolved: Variant = _resolve_ref(params)
+	if resolved is Dictionary:
+		return resolved
+	var value: String = str(params.get("value", ""))
+	if value == "":
+		return {"__error": "select: 'value' is required (index or item text)"}
+	if not select(resolved, value):
+		return {"__error": "select: no match for \"%s\" on %s" % [value, resolved.get_class()]}
+	return _interaction_response(params)
+
+
 func _handle_type(params: Dictionary) -> Variant:
 	var text: String = str(params.get("text", ""))
 	if not type(text):
@@ -300,6 +559,24 @@ func _handle_press(params: Dictionary) -> Variant:
 	return _interaction_response(params)
 
 
+func _handle_keydown(params: Dictionary) -> Variant:
+	var key_name: String = str(params.get("key", ""))
+	if key_name == "":
+		return {"__error": "key is required (e.g. \"enter\", \"escape\", \"arrowleft\", \"f1\")"}
+	if not keydown(key_name):
+		return {"__error": "keydown: unknown key \"%s\"" % key_name}
+	return _interaction_response(params)
+
+
+func _handle_keyup(params: Dictionary) -> Variant:
+	var key_name: String = str(params.get("key", ""))
+	if key_name == "":
+		return {"__error": "key is required (e.g. \"enter\", \"escape\", \"arrowleft\", \"f1\")"}
+	if not keyup(key_name):
+		return {"__error": "keyup: unknown key \"%s\"" % key_name}
+	return _interaction_response(params)
+
+
 func _handle_action(params: Dictionary) -> Variant:
 	var action_name: String = str(params.get("name", ""))
 	if action_name == "":
@@ -309,6 +586,65 @@ func _handle_action(params: Dictionary) -> Variant:
 	var mode: String = str(params.get("mode", "tap"))
 	if not action(action_name, mode):
 		return {"__error": "action mode must be tap/hold/release, got \"%s\"" % mode}
+	return _interaction_response(params)
+
+
+func _handle_mousemove(params: Dictionary) -> Variant:
+	if not params.has("x") or not params.has("y"):
+		return {"__error": "mousemove requires x and y"}
+	mousemove(float(params["x"]), float(params["y"]))
+	return _interaction_response(params)
+
+
+func _handle_mousedown(params: Dictionary) -> Variant:
+	var button: Variant = _parse_button(params)
+	if button is Dictionary:
+		return button
+	mousedown(button)
+	return _interaction_response(params)
+
+
+func _handle_mouseup(params: Dictionary) -> Variant:
+	var button: Variant = _parse_button(params)
+	if button is Dictionary:
+		return button
+	mouseup(button)
+	return _interaction_response(params)
+
+
+func _handle_mousewheel(params: Dictionary) -> Variant:
+	var dx: int = int(params.get("dx", 0))
+	var dy: int = int(params.get("dy", 0))
+	if dx == 0 and dy == 0:
+		return {"__error": "mousewheel requires non-zero dx or dy"}
+	var node: Node = null
+	var ref_val: Variant = params.get("ref", null)
+	if ref_val is String and ref_val != "":
+		var resolved: Variant = _resolve_ref(params)
+		if resolved is Dictionary:
+			return resolved
+		node = resolved
+	mousewheel(dx, dy, node)
+	return _interaction_response(params)
+
+
+func _handle_drag(params: Dictionary) -> Variant:
+	var from_ref: Variant = params.get("from", null)
+	if not (from_ref is String) or from_ref == "":
+		return {"__error": "drag: 'from' ref is required"}
+	var to_ref: Variant = params.get("to", null)
+	if not (to_ref is String) or to_ref == "":
+		return {"__error": "drag: 'to' ref is required"}
+	var from_node: Variant = _resolve_ref({"ref": from_ref})
+	if from_node is Dictionary:
+		return from_node
+	var to_node: Variant = _resolve_ref({"ref": to_ref})
+	if to_node is Dictionary:
+		return to_node
+	var button: Variant = _parse_button(params)
+	if button is Dictionary:
+		return button
+	drag(from_node, to_node, button)
 	return _interaction_response(params)
 
 
@@ -322,6 +658,16 @@ func _handle_screenshot(params: Dictionary) -> Variant:
 		target = resolved
 	var fmt: String = str(params.get("format", "png"))
 	return screenshot(target, fmt)
+
+
+func _handle_resize(params: Dictionary) -> Variant:
+	if not params.has("width") or not params.has("height"):
+		return {"__error": "resize requires width and height"}
+	var w: int = int(params["width"])
+	var h: int = int(params["height"])
+	if not resize(w, h):
+		return {"__error": "resize: width and height must be > 0 (got %d x %d)" % [w, h]}
+	return _interaction_response(params)
 
 
 func _handle_evaluate(params: Dictionary) -> Variant:
@@ -386,8 +732,7 @@ func _snapshot_format(control: Control) -> Dictionary:
 	if text != "":
 		entry["text"] = text
 
-	var needs_ref: bool = has_custom or control is LineEdit or control is TextEdit or control is BaseButton
-	if needs_ref:
+	if _needs_ref(control, has_custom):
 		entry["ref"] = _snapshot_ref(control)
 
 	var attrs: Dictionary = {}
@@ -455,6 +800,40 @@ func _custom_format_method(node: Node) -> String:
 	return ""
 
 
+# A Control gets a ref when:
+#   1. It opts in/out explicitly via `set_meta("godot_locator_ref", bool)`.
+#   2. It has a custom-format hook (already detected by the caller).
+#   3. It is a built-in interactive: BaseButton / LineEdit / TextEdit.
+#   4. Its script (or any ancestor script) overrides `_gui_input` — the
+#      canonical signal of "this Control handles its own input".
+#   5. Something is listening on its `gui_input` signal.
+# The heuristic catches custom interactables (canvases, picker grids, drag
+# rects) without flooding the snapshot with layout containers.
+func _needs_ref(control: Control, has_custom: bool) -> bool:
+	if control.has_meta(REF_META):
+		return bool(control.get_meta(REF_META))
+	if has_custom:
+		return true
+	if control is LineEdit or control is TextEdit or control is BaseButton:
+		return true
+	if _script_overrides(control, "_gui_input"):
+		return true
+	if not control.get_signal_connection_list("gui_input").is_empty():
+		return true
+	return false
+
+
+func _script_overrides(node: Node, method_name: String) -> bool:
+	var s: Variant = node.get_script()
+	while s is Script:
+		var script: Script = s
+		for m in script.get_script_method_list():
+			if m.get("name", "") == method_name:
+				return true
+		s = script.get_base_script()
+	return false
+
+
 # --- ref resolution -----------------------------------------------------------
 
 # Resolve `params.ref` to a live node, or return an `__error` dict.
@@ -495,6 +874,22 @@ func _push_mouse_click(node: Node, button: int, double: bool) -> void:
 	if vp == null:
 		vp = get_viewport()
 	# in_local_coords=true: Control.get_global_rect() is already viewport-local.
+	vp.push_input(press, true)
+	vp.push_input(release, true)
+
+
+func _push_wheel_tick(vp: Viewport, button: int, pos: Vector2) -> void:
+	var press := InputEventMouseButton.new()
+	press.button_index = button
+	press.pressed = true
+	press.position = pos
+	press.global_position = pos
+	press.factor = 1.0
+	var release := InputEventMouseButton.new()
+	release.button_index = button
+	release.pressed = false
+	release.position = pos
+	release.global_position = pos
 	vp.push_input(press, true)
 	vp.push_input(release, true)
 

@@ -26,5 +26,7 @@ asyncio_mode = "auto"
 testpaths = ["test_mcp", "test_cli"]
 addopts = "--import-mode=importlib"
 markers = [
-    "godot_project(name): name of the project under `tests/projects/` to spawn for `locator_client`",
+    "godot_project(name): name of the project under `tests/projects/` to spawn",
+    "godot_env(**env): extra environment variables for the Godot subprocess",
+    "godot_display(width=800, height=600): run Godot with a real display (skips without DISPLAY/WAYLAND_DISPLAY)",
 ]
