@@ -1,33 +1,30 @@
-# Godot Locator
+<h1 align="center">Godot Locator</h1>
 
 <div align="center">
-  <img src="website/static/img/godot-locator-logo-256.svg" alt="Godot Locator Banner">
+  <img src="website/static/img/godot-locator-logo-256.svg">
 
-**Let coding agents test your Godot game UI**
-
-A [Playwright](https://github.com/microsoft/playwright)-inspired locator API for the live UI tree of Godot games.
-
+  Let coding agents test your Godot game UI
 </div>
 
-<div align="center">
-
-[![godot-locator-cli](https://img.shields.io/badge/pypi-godot--locator--cli_v0.1.0-blue?logo=pypi&logoColor=white)](https://pypi.org/project/godot-locator-cli/)
-[![godot-locator-mcp](https://img.shields.io/badge/pypi-godot--locator--mcp_v0.1.0-blue?logo=pypi&logoColor=white)](https://pypi.org/project/godot-locator-mcp/)
-[![Godot Plugin](https://img.shields.io/badge/godot_plugin-v0.0.1-478CBF?logo=godot-engine&logoColor=white)](https://github.com/SanitoGonzalez/godot-locator)
-[![Godot 4.x](https://img.shields.io/badge/godot-4.x-478CBF?logo=godot-engine&logoColor=white)](https://godotengine.org/)
-[![Python](https://img.shields.io/badge/python-%E2%89%A53.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-
-</div>
+<p align="center">
+   <a href="https://sanitogonzalez.github.io/godot-locator/">Documentation</a> · <a href="FAQ.md">FAQ</a>
+</p>
 
 ---
 
-<!-- TODO: Add demo GIF/video here (30s clip of an agent navigating and clicking through a running game) -->
+<p align="center">
+  (Demo GIF placeholder)
+</p>
 
----
-[main.tscn](tests/projects/simple-ui/main.tscn)
-## Why Godot Locator?
+Access and interact with a Godot game UI via [Playwright](https://github.com/microsoft/playwright)-like API. 
+
+
+
+> [!WARNING]
+>
+> This project is in early-devlopment stage, which can introduce breaking changes in the future.
+
+## Why?
 
 Coding agents can write game code — but verifying it still requires a human to launch and play the game. Existing approaches don't fill that gap well.
 
@@ -46,6 +43,10 @@ Godot Locator powers the last approach — a Playwright-style API over the live 
 - **Token-efficient**: The SceneTree is read as structured text, not pixels. No images, no pixel processing — just the data that matters.
 - **Deterministic**: Interactions target nodes by name, type, or property — not screen coordinates that shift with every resolution or frame.
 - **Extensible**: Attach live game state (HP, score, current scene…) to every snapshot. Custom nodes can expose their own text and attributes.
+
+## What is located?
+
+UI nodes inherit [](https://docs.godotengine.org/en/stable/classes/class_control.html)
 
 ## Quick Start
 
