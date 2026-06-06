@@ -3,7 +3,7 @@
 <div align="center">
   <img src="website/static/img/godot-locator-logo-256.svg">
 
-  Let coding agents test your Godot game UI
+  Let coding agents test your Godot game UI via [Playwright](https://github.com/microsoft/playwright)-like API. 
 </div>
 
 <p align="center">
@@ -16,37 +16,28 @@
   (Demo GIF placeholder)
 </p>
 
-Access and interact with a Godot game UI via [Playwright](https://github.com/microsoft/playwright)-like API. 
-
-
-
 > [!WARNING]
 >
 > This project is in early-devlopment stage, which can introduce breaking changes in the future.
 
 ## Why?
 
-Coding agents can write game code — but verifying it still requires a human to launch and play the game. Existing approaches don't fill that gap well.
+Unit/Integration tests cannot fully cover gameplays, leaving several approaches to test the gameplays:
 
-| Approach | Coverage | Problem |
+
+| Approach | Pro | Con |
 |----------|----------|---------|
-| Human tests | Full gameplay | Slow, doesn't scale, inconsistent |
-| Unit tests | Pure logic | No scene or gameplay coverage |
-| Scripted tests | Limited gameplay | Breaks when the scene changes |
-| Screenshots + [VLM](https://en.wikipedia.org/wiki/Vision-language_model) | Gameplay | Slower and more expensive |
-| **Text snapshot + [LLM](https://en.wikipedia.org/wiki/Large_language_model)** | **Gameplay** | **No visual verification (use [screenshots](#workflow-automated-testing-with-final-screenshots) to compensate)** |
+| Human QA | Full gameplay coverage | Doesn't scale |
+| Screenshots + [VLM](https://en.wikipedia.org/wiki/Vision-language_model) | Catch visual glitch | Image interpretation is not deterministic |
+| **Text snapshot + [LLM](https://en.wikipedia.org/wiki/Large_language_model)** | Low inference cost/latency, Deterministic UI access | **No visual verification** (can be covered with [hybrid approach]()) |
 
-Godot Locator powers the last approach — a Playwright-style API over the live UI tree that coding agents can drive directly.
+**Godot Locator** powers the last approach — a Playwright-style API over the live UI tree that coding agents can drive directly.
 
 ### Key Features
 
-- **Token-efficient**: The SceneTree is read as structured text, not pixels. No images, no pixel processing — just the data that matters.
-- **Deterministic**: Interactions target nodes by name, type, or property — not screen coordinates that shift with every resolution or frame.
-- **Extensible**: Attach live game state (HP, score, current scene…) to every snapshot. Custom nodes can expose their own text and attributes.
-
-## What is located?
-
-UI nodes inherit [](https://docs.godotengine.org/en/stable/classes/class_control.html)
+- **Text representaion of Game UI**: [(SceneTree)](https://docs.godotengine.org/en/stable/classes/class_scenetree.html) is read as structured and LLM-friendly text.
+- **Deterministic**: Interactions target UI nodes by name, type, or property — not screen coordinates that shift with every resolution or frame.
+- **Extensible**: You can provide additional game contexts and customize text representaion of nodes in snapshots.
 
 ## Quick Start
 
@@ -66,7 +57,7 @@ See the [documentation](https://sanitogonzalez.github.io/godot-locator/) for man
 
 ## How It Works
 
-A small Godot plugin exposes the live SceneTree over WebSocket. Coding agents connect through the CLI or MCP server to query, interact, and take screenshots — without any changes to your game code.
+A small Godot plugin exposes the live SceneTree over WebSocket. Coding agents connect through the CLI or MCP server to query, interact, and take screenshots.
 
 ```mermaid
 graph LR
