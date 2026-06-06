@@ -1,0 +1,56 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv build --package godot-locator-core --out-dir dist/core
+      - run: uv build --package godot-locator-cli --out-dir dist/cli
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-core
+          path: packages/dist/core
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-cli
+          path: packages/dist/cli
+
+  # core publishes first so the CLI's `godot-locator-core` dependency resolves
+  publish-core:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-core
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+
+  publish-cli:
+    needs: publish-core
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-cli
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
