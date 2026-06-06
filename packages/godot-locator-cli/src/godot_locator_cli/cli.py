@@ -15,6 +15,7 @@ from godot_locator_core import (
 )
 
 from . import output
+from .commands.assertion import assert_cmd, wait_cmd
 from .commands.attach import attach_cmd, detach_cmd
 from .commands.evaluate import eval_cmd
 from .commands.interaction import (
@@ -90,12 +91,14 @@ root.add_command(mousewheel_cmd)
 root.add_command(drag_cmd)
 root.add_command(resize_cmd)
 root.add_command(eval_cmd)
+root.add_command(assert_cmd)
+root.add_command(wait_cmd)
 
 
 def main() -> None:
     """CLI entry point. Centralizes error handling so commands don't repeat it."""
     try:
-        root(standalone_mode=False)
+        code = root(standalone_mode=False)
     except SessionStaleError as e:
         # Spec format — agents grep for this exact message.
         output.emit_error(str(e))
@@ -110,6 +113,12 @@ def main() -> None:
     except click.ClickException as e:
         e.show()
         sys.exit(e.exit_code)
+    else:
+        # With standalone_mode=False, click returns a command's `Exit` code
+        # instead of raising it. Propagate it so failures (assert, launch
+        # timeout, sessions rm, …) actually exit non-zero.
+        if code:
+            sys.exit(code)
 
 
 if __name__ == "__main__":

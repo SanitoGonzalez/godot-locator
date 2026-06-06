@@ -19,7 +19,7 @@ _BUTTON_ARG = click.argument(
 
 
 @click.command("click")
-@click.argument("ref")
+@click.argument("ref", metavar="TARGET")
 @_BUTTON_ARG
 @click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
 @click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
@@ -35,7 +35,7 @@ async def click_cmd(
     """Click a node by ref. BUTTON defaults to 'left'."""
     name_flag = ctx.obj.get("session") if ctx.obj else None
     async with with_session(name_flag) as (session, client):
-        result = await client.call("click", ref=ref, button=button)
+        result = await client.call("click", target=ref, button=button)
     if as_json:
         output.emit_json(result)
         return
@@ -43,7 +43,7 @@ async def click_cmd(
 
 
 @click.command("hover")
-@click.argument("ref")
+@click.argument("ref", metavar="TARGET")
 @click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
 @click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
 @click.pass_context
@@ -57,7 +57,7 @@ async def hover_cmd(
     """Hover the mouse over a node by ref."""
     name_flag = ctx.obj.get("session") if ctx.obj else None
     async with with_session(name_flag) as (session, client):
-        result = await client.call("hover", ref=ref)
+        result = await client.call("hover", target=ref)
     if as_json:
         output.emit_json(result)
         return
@@ -65,7 +65,7 @@ async def hover_cmd(
 
 
 @click.command("dblclick")
-@click.argument("ref")
+@click.argument("ref", metavar="TARGET")
 @_BUTTON_ARG
 @click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
 @click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
@@ -81,7 +81,7 @@ async def dblclick_cmd(
     """Double-click a node by ref. BUTTON defaults to 'left'."""
     name_flag = ctx.obj.get("session") if ctx.obj else None
     async with with_session(name_flag) as (session, client):
-        result = await client.call("double_click", ref=ref, button=button)
+        result = await client.call("double_click", target=ref, button=button)
     if as_json:
         output.emit_json(result)
         return
@@ -89,7 +89,7 @@ async def dblclick_cmd(
 
 
 @click.command("fill")
-@click.argument("ref")
+@click.argument("ref", metavar="TARGET")
 @click.argument("text")
 @click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
 @click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
@@ -105,7 +105,7 @@ async def fill_cmd(
     """Replace the text of a LineEdit/TextEdit by ref (atomic)."""
     name_flag = ctx.obj.get("session") if ctx.obj else None
     async with with_session(name_flag) as (session, client):
-        result = await client.call("fill", ref=ref, text=text)
+        result = await client.call("fill", target=ref, text=text)
     if as_json:
         output.emit_json(result)
         return
@@ -113,7 +113,7 @@ async def fill_cmd(
 
 
 @click.command("check")
-@click.argument("ref")
+@click.argument("ref", metavar="TARGET")
 @click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
 @click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
 @click.pass_context
@@ -127,7 +127,7 @@ async def check_cmd(
     """Set a toggle-mode button (CheckBox/CheckButton) to checked."""
     name_flag = ctx.obj.get("session") if ctx.obj else None
     async with with_session(name_flag) as (session, client):
-        result = await client.call("check", ref=ref)
+        result = await client.call("check", target=ref)
     if as_json:
         output.emit_json(result)
         return
@@ -135,7 +135,7 @@ async def check_cmd(
 
 
 @click.command("uncheck")
-@click.argument("ref")
+@click.argument("ref", metavar="TARGET")
 @click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
 @click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
 @click.pass_context
@@ -149,7 +149,7 @@ async def uncheck_cmd(
     """Set a toggle-mode button (CheckBox/CheckButton) to unchecked."""
     name_flag = ctx.obj.get("session") if ctx.obj else None
     async with with_session(name_flag) as (session, client):
-        result = await client.call("uncheck", ref=ref)
+        result = await client.call("uncheck", target=ref)
     if as_json:
         output.emit_json(result)
         return
@@ -157,7 +157,7 @@ async def uncheck_cmd(
 
 
 @click.command("select")
-@click.argument("ref")
+@click.argument("ref", metavar="TARGET")
 @click.argument("value")
 @click.option("--no-snapshot", is_flag=True, help="Suppress the snapshot block.")
 @click.option("--json", "as_json", is_flag=True, help="Emit raw JSON.")
@@ -173,7 +173,7 @@ async def select_cmd(
     """Select an OptionButton item by index or label."""
     name_flag = ctx.obj.get("session") if ctx.obj else None
     async with with_session(name_flag) as (session, client):
-        result = await client.call("select", ref=ref, value=value)
+        result = await client.call("select", target=ref, value=value)
     if as_json:
         output.emit_json(result)
         return

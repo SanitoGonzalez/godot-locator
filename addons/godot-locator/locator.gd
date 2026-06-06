@@ -56,12 +56,22 @@ var _cursor_pos: Vector2 = Vector2.ZERO
 
 var _server: Node
 
+# Compiled in `_ready` (only when the service is enabled). `_ref_re` tells a
+# ref (`e15`) apart from a selector; `_nth_re`/`_text_re` extract the
+# `:nth(i)` / `:text("…")` pseudo-filters off a selector's base.
+var _ref_re: RegEx
+var _nth_re: RegEx
+var _text_re: RegEx
+
 
 func _ready() -> void:
 	# Release builds must opt in via the `locator` export feature tag; debug
 	# builds always enable. Keeps shipping exports clean by default.
 	if not OS.is_debug_build() and not OS.has_feature("locator"):
 		return
+	_ref_re = RegEx.create_from_string("^e[0-9]+$")
+	_nth_re = RegEx.create_from_string(":nth\\(([0-9]+)\\)")
+	_text_re = RegEx.create_from_string(":text\\(\"((?:[^\"\\\\]|\\\\.)*)\"\\)")
 	_server = ServerModule.new()
 	_server.name = "Server"
 	_server.locator = self
@@ -444,28 +454,32 @@ func _parse_key(name: String) -> int:
 # --- wire dispatch ------------------------------------------------------------
 
 func dispatch(method: String, params: Dictionary) -> Variant:
+	# Every handler is awaited: interaction/assert handlers are coroutines
+	# (they advance frames); the rest return plainly and `await` passes the
+	# value straight through.
 	match method:
-		"snapshot":     return _handle_snapshot(params)
-		"click":        return _handle_click(params)
-		"hover":        return _handle_hover(params)
-		"double_click": return _handle_double_click(params)
-		"fill":         return _handle_fill(params)
-		"check":        return _handle_check(params)
-		"uncheck":      return _handle_uncheck(params)
-		"select":       return _handle_select(params)
-		"type":         return _handle_type(params)
-		"press":        return _handle_press(params)
-		"keydown":      return _handle_keydown(params)
-		"keyup":        return _handle_keyup(params)
-		"action":       return _handle_action(params)
-		"mousewheel":   return _handle_mousewheel(params)
-		"mousemove":    return _handle_mousemove(params)
-		"mousedown":    return _handle_mousedown(params)
-		"mouseup":      return _handle_mouseup(params)
-		"drag":         return _handle_drag(params)
-		"screenshot":   return _handle_screenshot(params)
-		"resize":       return _handle_resize(params)
-		"evaluate":     return _handle_evaluate(params)
+		"snapshot":     return await _handle_snapshot(params)
+		"click":        return await _handle_click(params)
+		"hover":        return await _handle_hover(params)
+		"double_click": return await _handle_double_click(params)
+		"fill":         return await _handle_fill(params)
+		"check":        return await _handle_check(params)
+		"uncheck":      return await _handle_uncheck(params)
+		"select":       return await _handle_select(params)
+		"type":         return await _handle_type(params)
+		"press":        return await _handle_press(params)
+		"keydown":      return await _handle_keydown(params)
+		"keyup":        return await _handle_keyup(params)
+		"action":       return await _handle_action(params)
+		"mousewheel":   return await _handle_mousewheel(params)
+		"mousemove":    return await _handle_mousemove(params)
+		"mousedown":    return await _handle_mousedown(params)
+		"mouseup":      return await _handle_mouseup(params)
+		"drag":         return await _handle_drag(params)
+		"screenshot":   return await _handle_screenshot(params)
+		"resize":       return await _handle_resize(params)
+		"evaluate":     return await _handle_evaluate(params)
+		"assert":       return await _handle_assert(params)
 		_: return {"__error": "unknown method: %s" % method}
 
 
@@ -477,33 +491,33 @@ func _handle_snapshot(params: Dictionary) -> Variant:
 
 
 func _handle_click(params: Dictionary) -> Variant:
-	var resolved: Variant = _resolve_ref(params)
+	var resolved: Variant = _resolve_param_target(params)
 	if resolved is Dictionary:
 		return resolved
 	var button: Variant = _parse_button(params)
 	if button is Dictionary:
 		return button
 	click(resolved, button)
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_hover(params: Dictionary) -> Variant:
-	var resolved: Variant = _resolve_ref(params)
+	var resolved: Variant = _resolve_param_target(params)
 	if resolved is Dictionary:
 		return resolved
 	hover(resolved)
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_double_click(params: Dictionary) -> Variant:
-	var resolved: Variant = _resolve_ref(params)
+	var resolved: Variant = _resolve_param_target(params)
 	if resolved is Dictionary:
 		return resolved
 	var button: Variant = _parse_button(params)
 	if button is Dictionary:
 		return button
 	double_click(resolved, button)
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _parse_button(params: Dictionary) -> Variant:
@@ -516,35 +530,35 @@ func _parse_button(params: Dictionary) -> Variant:
 
 
 func _handle_fill(params: Dictionary) -> Variant:
-	var resolved: Variant = _resolve_ref(params)
+	var resolved: Variant = _resolve_param_target(params)
 	if resolved is Dictionary:
 		return resolved
 	var text: String = str(params.get("text", ""))
 	if not fill(resolved, text):
 		return {"__error": "fill: node is not LineEdit/TextEdit (got %s)" % resolved.get_class()}
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_check(params: Dictionary) -> Variant:
-	var resolved: Variant = _resolve_ref(params)
+	var resolved: Variant = _resolve_param_target(params)
 	if resolved is Dictionary:
 		return resolved
 	if not check(resolved):
 		return {"__error": "check: node is not a toggle-mode BaseButton (got %s)" % resolved.get_class()}
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_uncheck(params: Dictionary) -> Variant:
-	var resolved: Variant = _resolve_ref(params)
+	var resolved: Variant = _resolve_param_target(params)
 	if resolved is Dictionary:
 		return resolved
 	if not uncheck(resolved):
 		return {"__error": "uncheck: node is not a toggle-mode BaseButton (got %s)" % resolved.get_class()}
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_select(params: Dictionary) -> Variant:
-	var resolved: Variant = _resolve_ref(params)
+	var resolved: Variant = _resolve_param_target(params)
 	if resolved is Dictionary:
 		return resolved
 	var value: String = str(params.get("value", ""))
@@ -552,14 +566,14 @@ func _handle_select(params: Dictionary) -> Variant:
 		return {"__error": "select: 'value' is required (index or item text)"}
 	if not select(resolved, value):
 		return {"__error": "select: no match for \"%s\" on %s" % [value, resolved.get_class()]}
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_type(params: Dictionary) -> Variant:
 	var text: String = str(params.get("text", ""))
 	if not type(text):
 		return {"__error": "type: no Control is focused to receive keyboard input"}
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_press(params: Dictionary) -> Variant:
@@ -568,7 +582,7 @@ func _handle_press(params: Dictionary) -> Variant:
 		return {"__error": "key is required (e.g. \"enter\", \"escape\", \"arrowleft\", \"f1\")"}
 	if not press(key_name):
 		return {"__error": "press: unknown key \"%s\"" % key_name}
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_keydown(params: Dictionary) -> Variant:
@@ -577,7 +591,7 @@ func _handle_keydown(params: Dictionary) -> Variant:
 		return {"__error": "key is required (e.g. \"enter\", \"escape\", \"arrowleft\", \"f1\")"}
 	if not keydown(key_name):
 		return {"__error": "keydown: unknown key \"%s\"" % key_name}
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_keyup(params: Dictionary) -> Variant:
@@ -586,7 +600,7 @@ func _handle_keyup(params: Dictionary) -> Variant:
 		return {"__error": "key is required (e.g. \"enter\", \"escape\", \"arrowleft\", \"f1\")"}
 	if not keyup(key_name):
 		return {"__error": "keyup: unknown key \"%s\"" % key_name}
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_action(params: Dictionary) -> Variant:
@@ -598,14 +612,14 @@ func _handle_action(params: Dictionary) -> Variant:
 	var mode: String = str(params.get("mode", "tap"))
 	if not action(action_name, mode):
 		return {"__error": "action mode must be tap/hold/release, got \"%s\"" % mode}
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_mousemove(params: Dictionary) -> Variant:
 	if not params.has("x") or not params.has("y"):
 		return {"__error": "mousemove requires x and y"}
 	mousemove(float(params["x"]), float(params["y"]))
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_mousedown(params: Dictionary) -> Variant:
@@ -613,7 +627,7 @@ func _handle_mousedown(params: Dictionary) -> Variant:
 	if button is Dictionary:
 		return button
 	mousedown(button)
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_mouseup(params: Dictionary) -> Variant:
@@ -621,7 +635,7 @@ func _handle_mouseup(params: Dictionary) -> Variant:
 	if button is Dictionary:
 		return button
 	mouseup(button)
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_mousewheel(params: Dictionary) -> Variant:
@@ -630,41 +644,41 @@ func _handle_mousewheel(params: Dictionary) -> Variant:
 	if dx == 0 and dy == 0:
 		return {"__error": "mousewheel requires non-zero dx or dy"}
 	var node: Node = null
-	var ref_val: Variant = params.get("ref", null)
+	var ref_val: Variant = params.get("target", params.get("ref", null))
 	if ref_val is String and ref_val != "":
-		var resolved: Variant = _resolve_ref(params)
+		var resolved: Variant = _resolve_param_target(params)
 		if resolved is Dictionary:
 			return resolved
 		node = resolved
 	mousewheel(dx, dy, node)
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_drag(params: Dictionary) -> Variant:
 	var from_ref: Variant = params.get("from", null)
 	if not (from_ref is String) or from_ref == "":
-		return {"__error": "drag: 'from' ref is required"}
+		return {"__error": "drag: 'from' target is required"}
 	var to_ref: Variant = params.get("to", null)
 	if not (to_ref is String) or to_ref == "":
-		return {"__error": "drag: 'to' ref is required"}
-	var from_node: Variant = _resolve_ref({"ref": from_ref})
+		return {"__error": "drag: 'to' target is required"}
+	var from_node: Variant = _resolve_target_string(from_ref)
 	if from_node is Dictionary:
 		return from_node
-	var to_node: Variant = _resolve_ref({"ref": to_ref})
+	var to_node: Variant = _resolve_target_string(to_ref)
 	if to_node is Dictionary:
 		return to_node
 	var button: Variant = _parse_button(params)
 	if button is Dictionary:
 		return button
 	drag(from_node, to_node, button)
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_screenshot(params: Dictionary) -> Variant:
 	var target: Node = null
-	var ref_val: Variant = params.get("ref", null)
+	var ref_val: Variant = params.get("target", params.get("ref", null))
 	if ref_val is String and ref_val != "":
-		var resolved: Variant = _resolve_ref(params)
+		var resolved: Variant = _resolve_param_target(params)
 		if resolved is Dictionary:
 			return resolved
 		target = resolved
@@ -679,7 +693,7 @@ func _handle_resize(params: Dictionary) -> Variant:
 	var h: int = int(params["height"])
 	if not resize(w, h):
 		return {"__error": "resize: width and height must be > 0 (got %d x %d)" % [w, h]}
-	return _interaction_response(params)
+	return await _interaction_response(params)
 
 
 func _handle_evaluate(params: Dictionary) -> Variant:
@@ -687,9 +701,9 @@ func _handle_evaluate(params: Dictionary) -> Variant:
 	if code == "":
 		return {"__error": "expression is required"}
 	var node: Node = null
-	var ref_val: Variant = params.get("ref", null)
+	var ref_val: Variant = params.get("target", params.get("ref", null))
 	if ref_val is String and ref_val != "":
-		var resolved: Variant = _resolve_ref(params)
+		var resolved: Variant = _resolve_param_target(params)
 		if resolved is Dictionary:
 			return resolved
 		node = resolved
@@ -872,6 +886,228 @@ func _resolve_ref(params: Dictionary) -> Variant:
 	return {"__error": "unknown ref: %s" % ref}
 
 
+# --- target resolution (ref OR selector) --------------------------------------
+
+# Resolve the node-targeting param to a single live node, or an `__error` dict.
+# Reads `target`, falling back to `ref` (the pre-selector wire name). The value
+# may be a ref (`e15`) or a selector — interactions require a unique match.
+func _resolve_param_target(params: Dictionary) -> Variant:
+	var raw: Variant = params.get("target", params.get("ref", null))
+	if not (raw is String) or raw == "":
+		return {"__error": "target is required — a ref (e.g. \"e15\") or selector (e.g. \"#Start\")"}
+	return _resolve_target_string(raw)
+
+
+func _resolve_target_string(s: String) -> Variant:
+	if _is_ref(s):
+		return _resolve_ref({"ref": s})
+	var matches := _query(s)
+	if matches.is_empty():
+		return {"__error": "no node matches selector \"%s\"" % s}
+	if matches.size() > 1:
+		return {"__error": "selector \"%s\" matched %d nodes — narrow it or use a ref" % [s, matches.size()]}
+	return matches[0]
+
+
+func _is_ref(s: String) -> bool:
+	return _ref_re != null and _ref_re.search(s) != null
+
+
+# --- selector engine ----------------------------------------------------------
+
+# Resolve a selector to the matching nodes. Grammar:
+#   /abs/path        absolute NodePath from the scene root (any node)
+#   #Name            node name
+#   Class            class name (`get_class()` or the script's `class_name`)
+#   Class#Name       class + name
+#   …:text("Foo")    filter by display text (exact)
+#   …:nth(i)         keep only the i-th (0-based) match
+func _query(selector: String) -> Array:
+	var sel := selector.strip_edges()
+	if sel == "":
+		return []
+	if sel.begins_with("/"):
+		var n: Node = get_tree().root.get_node_or_null(NodePath(sel))
+		return [n] if n != null else []
+
+	var text_filter := ""
+	var has_text := false
+	if _text_re != null:
+		var tm := _text_re.search(sel)
+		if tm != null:
+			text_filter = tm.get_string(1).c_unescape()
+			has_text = true
+			sel = sel.replace(tm.get_string(0), "")
+
+	var nth := -1
+	if _nth_re != null:
+		var nm := _nth_re.search(sel)
+		if nm != null:
+			nth = int(nm.get_string(1))
+			sel = sel.replace(nm.get_string(0), "")
+
+	var class_token := ""
+	var name_token := ""
+	sel = sel.strip_edges()
+	var hash_at := sel.find("#")
+	if hash_at >= 0:
+		class_token = sel.substr(0, hash_at)
+		name_token = sel.substr(hash_at + 1)
+	else:
+		class_token = sel
+
+	var out: Array = []
+	_query_walk(get_tree().root, class_token, name_token, has_text, text_filter, out)
+	if nth >= 0:
+		return [out[nth]] if nth < out.size() else []
+	return out
+
+
+func _query_walk(node: Node, class_token: String, name_token: String, has_text: bool, text_filter: String, out: Array) -> void:
+	if _node_matches(node, class_token, name_token, has_text, text_filter):
+		out.append(node)
+	for child in node.get_children():
+		_query_walk(child, class_token, name_token, has_text, text_filter, out)
+
+
+func _node_matches(node: Node, class_token: String, name_token: String, has_text: bool, text_filter: String) -> bool:
+	if class_token != "" and node.get_class() != class_token and _class_name_of(node) != class_token:
+		return false
+	if name_token != "" and str(node.name) != name_token:
+		return false
+	if has_text and _display_text(node) != text_filter:
+		return false
+	return true
+
+
+# The user-meaningful text of a node, matching what snapshots surface.
+func _display_text(node: Node) -> String:
+	if node is Label:
+		return (node as Label).text
+	if node is Button:
+		return (node as Button).text
+	if node is RichTextLabel:
+		return (node as RichTextLabel).get_parsed_text()
+	if node is LineEdit:
+		return (node as LineEdit).text
+	if node is TextEdit:
+		return (node as TextEdit).text
+	return ""
+
+
+# The current input/value of a node, for the `value` matcher.
+func _value_of(node: Node) -> String:
+	if node is LineEdit:
+		return (node as LineEdit).text
+	if node is TextEdit:
+		return (node as TextEdit).text
+	if node is OptionButton:
+		var ob := node as OptionButton
+		return ob.get_item_text(ob.selected) if ob.selected >= 0 else ""
+	if node is Range:
+		return str((node as Range).value)
+	return ""
+
+
+func _is_disabled(node: Node) -> bool:
+	return node is BaseButton and (node as BaseButton).disabled
+
+
+# --- assertions ---------------------------------------------------------------
+
+func _handle_assert(params: Dictionary) -> Variant:
+	var selector: String = str(params.get("target", params.get("selector", "")))
+	var matcher: String = str(params.get("matcher", ""))
+	if matcher == "":
+		return {"__error": "assert requires a matcher"}
+	var expected: Variant = params.get("expected", null)
+	var key: String = str(params.get("key", ""))
+	var timeout_ms: int = int(params.get("timeout_ms", 0))
+	return await assert_condition(selector, matcher, expected, key, timeout_ms)
+
+
+# Poll `matcher` against `selector` until it passes or `timeout_ms` elapses,
+# advancing a frame between checks. Always returns a result dict (a failed
+# assertion is a normal answer, not a wire error) with the post-wait snapshot.
+func assert_condition(selector: String, matcher: String, expected: Variant, key: String, timeout_ms: int) -> Dictionary:
+	var deadline := Time.get_ticks_msec() + maxi(0, timeout_ms)
+	var ev: Dictionary = {}
+	while true:
+		ev = _evaluate_matcher(selector, matcher, expected, key)
+		if ev.get("pass", false) or Time.get_ticks_msec() >= deadline:
+			break
+		await get_tree().process_frame
+	return {
+		"pass": ev.get("pass", false),
+		"selector": selector,
+		"matcher": matcher,
+		"observed": ev.get("observed"),
+		"waited_ms": timeout_ms - maxi(0, deadline - Time.get_ticks_msec()),
+		"snapshot": snapshot(0, false),
+	}
+
+
+func _evaluate_matcher(selector: String, matcher: String, expected: Variant, key: String) -> Dictionary:
+	if matcher == "expr":
+		return _match_expr(selector, str(expected))
+
+	var matches := _query(selector)
+	match matcher:
+		"exists":
+			return {"pass": not matches.is_empty(), "observed": matches.size()}
+		"absent":
+			return {"pass": matches.is_empty(), "observed": matches.size()}
+		"count":
+			return {"pass": matches.size() == int(str(expected)), "observed": matches.size()}
+		"visible":
+			var vis := matches.any(func(n): return n is Control and (n as Control).is_visible_in_tree())
+			return {"pass": vis, "observed": vis}
+		"hidden":
+			# Hidden when no match is visible-in-tree (absent counts as hidden).
+			var any_vis := matches.any(func(n): return n is Control and (n as Control).is_visible_in_tree())
+			return {"pass": not any_vis, "observed": any_vis}
+		"text":
+			var texts := matches.map(func(n): return _display_text(n))
+			return {"pass": texts.has(str(expected)), "observed": texts}
+		"contains":
+			var hit := matches.any(func(n): return _display_text(n).contains(str(expected)))
+			return {"pass": hit, "observed": matches.map(func(n): return _display_text(n))}
+		"value":
+			var vals := matches.map(func(n): return _value_of(n))
+			return {"pass": vals.has(str(expected)), "observed": vals}
+		"checked":
+			return {"pass": matches.any(func(n): return n is BaseButton and (n as BaseButton).button_pressed), "observed": matches.map(func(n): return n is BaseButton and (n as BaseButton).button_pressed)}
+		"unchecked":
+			return {"pass": matches.any(func(n): return n is BaseButton and not (n as BaseButton).button_pressed), "observed": matches.map(func(n): return n is BaseButton and not (n as BaseButton).button_pressed)}
+		"enabled":
+			return {"pass": matches.any(func(n): return not _is_disabled(n)), "observed": matches.map(func(n): return not _is_disabled(n))}
+		"disabled":
+			return {"pass": matches.any(func(n): return _is_disabled(n)), "observed": matches.map(func(n): return _is_disabled(n))}
+		"property":
+			if key == "":
+				return {"pass": false, "observed": "property matcher requires a key"}
+			var got := matches.map(func(n): return str(n.get(key)))
+			return {"pass": got.has(str(expected)), "observed": got}
+	return {"pass": false, "observed": "unknown matcher: %s" % matcher}
+
+
+# Evaluate a GDScript predicate (gated by EVAL_ENV, like `evaluate`). The
+# selector — when non-empty and not "-" — resolves to a node bound as `node`.
+func _match_expr(selector: String, code: String) -> Dictionary:
+	var node: Node = null
+	if selector != "" and selector != "-":
+		var r: Variant = _resolve_target_string(selector)
+		if r is Dictionary:
+			return {"pass": false, "observed": r.get("__error")}
+		node = r
+	var res: Variant = evaluate(code, node)
+	if res is Dictionary and res.has("__error"):
+		return {"pass": false, "observed": res["__error"]}
+	var v: Variant = res.get("value") if res is Dictionary else res
+	var observed: Variant = v if typeof(v) in [TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING] else str(v)
+	return {"pass": bool(v), "observed": observed}
+
+
 # --- input synthesis ----------------------------------------------------------
 
 func _push_mouse_click(node: Node, button: int, double: bool) -> void:
@@ -926,8 +1162,11 @@ func _node_center(node: Node) -> Vector2:
 # --- response builder ---------------------------------------------------------
 
 # Bundle the post-interaction state into a single response so callers don't
-# need a follow-up snapshot.
+# need a follow-up snapshot. Advances one frame first so effects Godot defers
+# past the current frame — change_scene_to_file, queue_free, call_deferred —
+# are reflected in the snapshot the caller gets back.
 func _interaction_response(params: Dictionary) -> Dictionary:
+	await get_tree().process_frame
 	_snapshot_version += 1
 	return {
 		"snapshot": snapshot(0, false),
